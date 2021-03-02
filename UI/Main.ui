@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="windowModality">
+   <enum>Qt::ApplicationModal</enum>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="contextMenuPolicy">
+   <enum>Qt::NoContextMenu</enum>
+  </property>
+  <property name="windowTitle">
+   <string>Volmoe4KOBO</string>
+  </property>
+  <property name="documentMode">
+   <bool>false</bool>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QFormLayout" name="formLayout">
+    <item row="0" column="0">
+     <widget class="QToolBox" name="toolBox">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="autoFillBackground">
+       <bool>false</bool>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::NoFrame</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Plain</enum>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tabBegin">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>69</width>
+         <height>385</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>Begin</string>
+       </attribute>
+       <widget class="QLabel" name="label_2">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>9</y>
+          <width>23</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Intro</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="tabExtract">
+       <attribute name="label">
+        <string>內容分析</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tabFirstPage">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>69</width>
+         <height>385</height>
+        </rect>
+       </property>
+       <attribute name="label">
+        <string>設定首頁</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tabImageEnhance">
+       <attribute name="label">
+        <string>畫面優化</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tabTOC">
+       <attribute name="label">
+        <string>目錄編輯</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tabUpload">
+       <attribute name="label">
+        <string>上傳檔案</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QStackedWidget" name="stackedWidget">
+      <widget class="QWidget" name="pageBegin">
+       <widget class="QPushButton" name="buttonSelectFile">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>20</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Select File...</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="buttonBeginNext">
+        <property name="geometry">
+         <rect>
+          <x>620</x>
+          <y>510</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>下一步</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>701</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>選取一個或多個ePub檔案開始調整。</string>
+        </property>
+        <property name="scaledContents">
+         <bool>false</bool>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="pageExtract">
+       <widget class="QProgressBar" name="progressBar">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>20</y>
+          <width>118</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="value">
+         <number>24</number>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="buttonExtractNext">
+        <property name="geometry">
+         <rect>
+          <x>620</x>
+          <y>510</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>下一步</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_3">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>701</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>檔案分析中，請稍候。</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="pageFirstPage">
+       <widget class="QLabel" name="imageFirstPage">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>40</y>
+          <width>311</width>
+          <height>471</height>
+         </rect>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Panel</enum>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="buttonFirstPageNext">
+        <property name="geometry">
+         <rect>
+          <x>620</x>
+          <y>510</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>下一步</string>
+        </property>
+       </widget>
+       <widget class="QSpinBox" name="spinBoxFirstPage">
+        <property name="geometry">
+         <rect>
+          <x>141</x>
+          <y>520</y>
+          <width>51</width>
+          <height>20</height>
+         </rect>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="pageImageEnhance">
+       <widget class="QSlider" name="sliderContrast">
+        <property name="geometry">
+         <rect>
+          <x>90</x>
+          <y>510</y>
+          <width>160</width>
+          <height>22</height>
+         </rect>
+        </property>
+        <property name="maximum">
+         <number>128</number>
+        </property>
+        <property name="value">
+         <number>32</number>
+        </property>
+        <property name="sliderPosition">
+         <number>32</number>
+        </property>
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="invertedAppearance">
+         <bool>false</bool>
+        </property>
+        <property name="invertedControls">
+         <bool>false</bool>
+        </property>
+        <property name="tickPosition">
+         <enum>QSlider::TicksBelow</enum>
+        </property>
+        <property name="tickInterval">
+         <number>8</number>
+        </property>
+       </widget>
+       <widget class="QLabel" name="label_4">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>711</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>調整畫面對比度。</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="imageEnhanceLeft">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>20</y>
+          <width>311</width>
+          <height>470</height>
+         </rect>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Panel</enum>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QLabel" name="imageEnhanceRight">
+        <property name="geometry">
+         <rect>
+          <x>380</x>
+          <y>20</y>
+          <width>311</width>
+          <height>471</height>
+         </rect>
+        </property>
+        <property name="frameShape">
+         <enum>QFrame::Panel</enum>
+        </property>
+        <property name="frameShadow">
+         <enum>QFrame::Plain</enum>
+        </property>
+        <property name="lineWidth">
+         <number>1</number>
+        </property>
+        <property name="midLineWidth">
+         <number>0</number>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="buttonEnhancePageNext">
+        <property name="geometry">
+         <rect>
+          <x>620</x>
+          <y>510</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>下一步</string>
+        </property>
+       </widget>
+       <widget class="QSpinBox" name="spinBoxEnhancePage">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>500</y>
+          <width>42</width>
+          <height>22</height>
+         </rect>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="pageTOC"/>
+      <widget class="QWidget" name="pageUpload"/>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>21</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
