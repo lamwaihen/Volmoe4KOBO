@@ -30,16 +30,21 @@ class MainWindow(QtWidgets.QMainWindow):
         palette3.setBrush(self.backgroundRole(), QtGui.QColor(76, 141, 141))
         palette4 = QtGui.QPalette()
         palette4.setBrush(self.backgroundRole(), QtGui.QColor(50, 122, 122))
-        self.setPalette(paletteBase)
+        self.setPalette(palette1)
 
         self.ui.toolBox.currentChanged.connect(self.showCurrentPage)
         self.ui.buttonBeginNext.clicked.connect(self.nextButtonClicked)
         self.ui.buttonExtractNext.clicked.connect(self.nextButtonClicked)
-        self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)
         self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
         self.ui.buttonSelectFile.clicked.connect(self.openFileDialog)
+
+        # pageFirstPage
+        self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)        
         self.ui.spinBoxFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
+
+        # pageImageEnhance
         self.ui.spinBoxEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
+        self.ui.sliderContrast.valueChanged.connect(self.imageEnhancePreviewChanged)
 
         self.ui.toolBox.setCurrentIndex(0)
         self.tmp = os.path.join(gettempdir(), "ebook")
@@ -66,8 +71,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.toolBox.setCurrentIndex(x+1)
 
     def showCurrentPage(self):
-        x = self.ui.toolBox.currentIndex()
-        self.ui.stackedWidget.setCurrentIndex(x)
+        #x = self.ui.toolBox.currentIndex()
+        #self.ui.stackedWidget.setCurrentIndex(x)
 
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
         if currentPage == 'pageExtract':
@@ -77,7 +82,15 @@ class MainWindow(QtWidgets.QMainWindow):
         elif currentPage == 'pageFirstPage':
             self.ui.spinBoxFirstPage.setValue(3)
         elif currentPage == 'pageImageEnhance':
+            for book in self.books:
+                book.layout_fix(self.ui.spinBoxFirstPage.value())
             self.ui.spinBoxEnhancePage.setValue(5)
+        elif currentPage == 'pageTOC':
+            for book in self.books:
+                print("hello")
+        elif currentPage == 'pageUpload':
+            for book in self.books:
+                book.image_enhance(self.ui.sliderContrast.value())
 
     def firstPagePreviewChanged(self):
         for book in self.books:
@@ -86,23 +99,18 @@ class MainWindow(QtWidgets.QMainWindow):
             pixmap = QtGui.QPixmap(image)
             print(pixmap.width(),pixmap.height())
             self.ui.imageFirstPage.setPixmap(pixmap)
-            self.ui.imageFirstPage.setScaledContents (True)
     
     def imageEnhancePreviewChanged(self):
         for book in self.books:
             i = self.ui.spinBoxEnhancePage.value()
             image = book.get_page(i)
             self.ui.imageEnhanceLeft.setPixmap(QtGui.QPixmap(image))
-            self.ui.imageEnhanceLeft.setScaledContents (True)
+            self.ui.imageEnhanceLeft.setScaledContents(True)
 
             c = self.ui.sliderContrast.value()
             newImage = book.get_enhance_page(i, c)
-            #pix = QtGui.QPixmap.fromImage(ImageQt(newImage))
-            pix = pil2pixmap(newImage)
-            print(pix.width(),pix.height())
-            pix.save(os.path.join(self.tmp, "temp.jpg"))
-            self.ui.imageEnhanceRight.setPixmap(pix)
-            self.ui.imageEnhanceRight.setScaledContents (True)
+            self.ui.imageEnhanceRight.setPixmap(pil2pixmap(newImage))
+            self.ui.imageEnhanceRight.setScaledContents(True)
 
 def pil2pixmap(image):
     bytes_img = io.BytesIO()

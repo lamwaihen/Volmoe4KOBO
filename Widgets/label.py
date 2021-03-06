@@ -45,20 +45,4 @@ class ImageWidget(QtWidgets.QLabel):
 
             return pixmap.scaled(nw, nh, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
         else:
-            return None    
-
-#    def hasHeightForWidth(self):
-#        return self.pixmap() is not None
-
-#    def heightForWidth(self, w):
-#        if self.pixmap():
-#            labelAR = float(self.width()) / self.height()
-#            imageAR = float(self.pixmap().width()) / self.pixmap().height()
-#            if labelAR > imageAR:
-#                h = w * imageAR
-#            elif labelAR < imageAR:
-#                h = self.height()
-
-#            #h = int(w * (self.pixmap().height() / self.pixmap().width()))
-#            print("heightForWidth: self {}, {} widget {}, {} pixmap {}, {}".format(self.width(), self.height(), w, h, self.pixmap().width(), self.pixmap().height()))
-#            return int(self.height())
+            return None
