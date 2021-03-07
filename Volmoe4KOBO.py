@@ -1,12 +1,12 @@
 import sys
+import threading
 from PyQt5 import QtWidgets, QtGui, QtCore
-#from PyQt5.QtGui import QPixmap
 from UI.Main import Ui_MainWindow
 
 from ebook import eBook
 
 import os
-from shutil import copyfile, rmtree
+from shutil import rmtree
 from tempfile import gettempdir
 
 import io
@@ -33,18 +33,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setPalette(palette1)
 
         self.ui.toolBox.currentChanged.connect(self.showCurrentPage)
+
+        # pageBegin
         self.ui.buttonBeginNext.clicked.connect(self.nextButtonClicked)
-        self.ui.buttonExtractNext.clicked.connect(self.nextButtonClicked)
-        self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
         self.ui.buttonSelectFile.clicked.connect(self.openFileDialog)
 
         # pageFirstPage
+        self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
         self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)        
-        self.ui.spinBoxFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
 
         # pageImageEnhance
-        self.ui.spinBoxEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
+        self.ui.scrollEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
         self.ui.sliderContrast.valueChanged.connect(self.imageEnhancePreviewChanged)
+        self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
+
+        # pageTOC
+        self.ui.scrollTOCPage.valueChanged.connect(self.tocPreviewChanged)
+        self.ui.buttonTOCPageNext.clicked.connect(self.nextButtonClicked)
+
+        # pageProcess
+        self.ui.buttonProcessNext.clicked.connect(self.nextButtonClicked)
 
         self.ui.toolBox.setCurrentIndex(0)
         self.tmp = os.path.join(gettempdir(), "ebook")
@@ -60,66 +68,85 @@ class MainWindow(QtWidgets.QMainWindow):
         path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', 'c:\\',"KOBO ePub (*.kepub.epub)")
         _, filename = os.path.split(path[0])
         # Copy selected file to temp folder for further process.
-        tempFile = os.path.join(self.tmp, filename)
-        copyfile(path[0], tempFile)
+        #tempFile = os.path.join(self.tmp, filename)
+        #copyfile(path[0], tempFile)
 
-        book = eBook(tempFile)
+        book = eBook(path[0])
+        book.extract()
+        book.parse()
         self.books.append(book)
+        
+        # update UI
+        self.ui.labelPath.setText(filename)
+        self.ui.labelTitle.setText(book.get_info("Title"))
+        self.ui.labelAuthor.setText(book.get_info("Author"))
+        self.ui.labelPageCount.setText(book.get_info("PageCount"))
+        self.ui.imageCover.setPixmap(QtGui.QPixmap(book.get_cover_page()))
+
+        self.ui.buttonBeginNext.setEnabled(True)
 
     def nextButtonClicked(self):
         x = self.ui.toolBox.currentIndex()
         self.ui.toolBox.setCurrentIndex(x+1)
 
     def showCurrentPage(self):
-        #x = self.ui.toolBox.currentIndex()
-        #self.ui.stackedWidget.setCurrentIndex(x)
-
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
-        if currentPage == 'pageExtract':
+        if currentPage == 'pageFirstPage':
             for book in self.books:
-                book.extract()
-                book.parse()
-        elif currentPage == 'pageFirstPage':
-            self.ui.spinBoxFirstPage.setValue(3)
+                size = int(book.get_info("PageCount"))
+                self.ui.scrollFirstPage.setRange(1, size)
+                self.ui.scrollFirstPage.setValue(3)
         elif currentPage == 'pageImageEnhance':
             for book in self.books:
-                book.layout_fix(self.ui.spinBoxFirstPage.value())
-            self.ui.spinBoxEnhancePage.setValue(5)
+                book.layout_fix(self.ui.scrollFirstPage.value())
+                size = int(book.get_info("PageCount"))
+                self.ui.scrollEnhancePage.setRange(1, size)
+                self.ui.scrollEnhancePage.setValue(5)
         elif currentPage == 'pageTOC':
             for book in self.books:
-                print("hello")
+                size = int(book.get_info("PageCount"))
+                self.ui.scrollTOCPage.setRange(1, size)
+                self.ui.scrollTOCPage.setValue(4)
+        elif currentPage == 'pageProcess':
+            for book in self.books:
+                t = threading.Thread(target=fileProcessing, args=(book, self.ui.scrollFirstPage.value(), self.ui.sliderContrast.value()))
+                t.start()
         elif currentPage == 'pageUpload':
             for book in self.books:
-                book.image_enhance(self.ui.sliderContrast.value())
+                print("hello")
 
     def firstPagePreviewChanged(self):
         for book in self.books:
-            i = self.ui.spinBoxFirstPage.value()
+            i = self.ui.scrollFirstPage.value()
             image = book.get_page(i)
             pixmap = QtGui.QPixmap(image)
-            print(pixmap.width(),pixmap.height())
             self.ui.imageFirstPage.setPixmap(pixmap)
+            self.ui.labelFirstPage.setText(str(i))
     
     def imageEnhancePreviewChanged(self):
         for book in self.books:
-            i = self.ui.spinBoxEnhancePage.value()
+            i = self.ui.scrollEnhancePage.value()
+            # Get page path
             image = book.get_page(i)
             self.ui.imageEnhanceLeft.setPixmap(QtGui.QPixmap(image))
-            self.ui.imageEnhanceLeft.setScaledContents(True)
+            self.ui.labelEnhancePage.setText(str(i))
 
             c = self.ui.sliderContrast.value()
+            self.ui.labelContrast.setText(str(c))
             newImage = book.get_enhance_page(i, c)
-            self.ui.imageEnhanceRight.setPixmap(pil2pixmap(newImage))
-            self.ui.imageEnhanceRight.setScaledContents(True)
+            self.ui.imageEnhanceRight.setPixmap(image=newImage)
 
-def pil2pixmap(image):
-    bytes_img = io.BytesIO()
-    image.save(bytes_img, format='JPEG')
+    def tocPreviewChanged(self):
+        for book in self.books:
+            i = self.ui.scrollTOCPage.value()
+            image = book.get_page(i)
+            self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
+            self.ui.labelTOCPage.setText(str(i))
 
-    qimg = QtGui.QImage()
-    qimg.loadFromData(bytes_img.getvalue())
-
-    return QtGui.QPixmap.fromImage(qimg)
+def fileProcessing(book: eBook, firstPage: int, contrast: int):
+    book.image_enhance(contrast)
+    book.generate_new_structure(firstPage)
+    book.repack()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

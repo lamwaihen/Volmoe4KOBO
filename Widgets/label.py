@@ -1,6 +1,10 @@
 import sys
 from PyQt5 import QtWidgets, QtGui, QtCore
 
+import io
+from PIL import Image
+from PIL.ImageQt import ImageQt
+
 class ImageWidget(QtWidgets.QLabel):
     """ Override QLabel to show image that keep aspect ratio, using the given pixmap. """
 
@@ -12,7 +16,9 @@ class ImageWidget(QtWidgets.QLabel):
         self.imageAR = 1.
         self.oriPixmap = None
 
-    def setPixmap(self, pixmap):
+    def setPixmap(self, pixmap: QtGui.QPixmap = None, image: Image = None):
+        if image and not pixmap:
+            pixmap = self.__pil2Pixmap(image)
         self.labelAR = float(self.width()) / self.height()
         self.imageAR = float(pixmap.width()) / pixmap.height()
         self.oriPixmap = pixmap
@@ -31,18 +37,25 @@ class ImageWidget(QtWidgets.QLabel):
             Input pixmap       
         """
         if pixmap:
-            w = self.width()
-            h = self.height()
-
+            # Get aspect ratio from current widget size.
             labelAR = float(self.width()) / self.height()
-            #imageAR = float(self.pixmap().width()) / self.pixmap().height()
             if labelAR > self.imageAR:
-                nw = h * self.imageAR
-                nh = h
+                nw = self.height() * self.imageAR
+                nh = self.height()
             elif labelAR < self.imageAR:
-                nw = w
-                nh = w / self.imageAR
+                nw = self.width()
+                nh = self.width() / self.imageAR
 
             return pixmap.scaled(nw, nh, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
         else:
             return None
+
+    def __pil2Pixmap(self, image: Image) -> QtGui.QPixmap:
+        """ Convert PIL image to QPixmap """
+        bytes_img = io.BytesIO()
+        image.save(bytes_img, format='JPEG')
+
+        qimg = QtGui.QImage()
+        qimg.loadFromData(bytes_img.getvalue())
+
+        return QtGui.QPixmap.fromImage(qimg)

@@ -4,6 +4,8 @@ import logging
 FORMAT = '%(asctime)s %(levelname)s %(module)s::%(funcName)s: %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=FORMAT)
 
+from tempfile import gettempdir
+from shutil import copyfile, copytree, rmtree
 import zipfile
 from zipfile import ZipFile
 
@@ -19,15 +21,22 @@ class eBook(object):
             path Location of the eBook file.
         """
         self.path = path
-        self.root, self.name = os.path.split(path)
+        _, self.name = os.path.split(path)
+
+        # Use temp folder as root.
+        self.root = os.path.join(gettempdir(), "ebook")
+
         self.input = os.path.join(self.root, 'Input', self.name)
         self.output = os.path.join(self.root, 'Output', self.name) 
 
+        if not os.path.exists(self.input):
+            os.makedirs(self.input)
         if not os.path.exists(self.output):
             os.makedirs(self.output)
 
         self.width = None
         self.toc_changed = False # Indicate whether user has changed toc or not.
+        self.toc = []
         logging.debug("Ready to open " + self.name)
         return
     
@@ -41,6 +50,7 @@ class eBook(object):
 
     def __del__(self): 
         """ Remove temp files in destructor. """
+        rmtree(self.input, ignore_errors=True)
         return
 
     def extract(self):
@@ -83,6 +93,18 @@ class eBook(object):
             cover_img = self.opf.find("item", id="cover_img")
             self.cover_img = cover_img.get("href")
             logging.info("cover_img: " + str(self.cover_img))
+
+            createby_img = self.opf.find("item", id="img_createby")
+            self.createby_img = createby_img.get("href")
+            logging.info("createby_img: " + str(self.createby_img))
+
+            css = self.opf.find("item", id="css")
+            self.css = css.get("href")
+            logging.info("css: " + str(self.css))
+
+            font01 = self.opf.find("item", id="font01")
+            self.font01 = font01.get("href")
+            logging.info("font01: " + str(self.font01))                        
         
             self.pages = []
             htmls = self.opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
@@ -99,21 +121,36 @@ class eBook(object):
         # Load ncx
         with open(os.path.join(self.input, "xml", "volmoe.ncx"), 'r', encoding="utf-8") as ncx:
             self.ncx = BeautifulSoup(ncx, 'html.parser')
-            self.build_date = [np.find('text').text for np in self.ncx.find_all('navpoint', id="Page_createby")]
+       
+            np = self.ncx.find('navpoint', id="Page_createby")
+            self.build_date = np.find('text').string
 
-    def image_enhance(self, contrast=64):
+    def image_enhance(self, contrast=32):
         """ https://stackoverflow.com/questions/42045362/change-contrast-of-image-in-pil """
         
-        image_dir = os.path.join(self.input, 'image')
-        if not os.path.exists(os.path.join(self.output, 'image')):
-            os.makedirs(os.path.join(self.output, 'image'))
-        #os.makedirs(os.path.join(self.temp_dir, 'Ximage'), exist_ok=True)
-        images = os.listdir(image_dir)
-        for image in images:
-            index = images.index(image) 
-            new_image = self.get_enhance_page(index, contrast)
-            # Save to temp folder
-            new_image.save(os.path.join(self.output, 'image', image))
+        os.makedirs(os.path.join(self.output, 'image'))
+
+        # Handle the cover page
+        image = Image.open(os.path.join(self.input, self.cover_img))
+        image = self.__enhance_image(image, contrast)
+        image.save(os.path.join(self.output, self.cover_img))
+
+        # Then all other pages
+        for i in self.pages:
+            print("i: {}".format(i))
+            image = Image.open(os.path.join(self.input, i["img"]))
+            new_image = self.__enhance_image(image, contrast)
+
+            # TODO: Upscaling
+
+            # TODO: Straighten
+
+            # TODO: Dewrap
+
+            # TODO: Corner alignment
+
+            # Save to output folder
+            new_image.save(os.path.join(self.output, i["img"]))
 
         return
     
@@ -171,6 +208,180 @@ class eBook(object):
         for i in remove_img: os.remove(i)
         return
 
+    def generate_new_structure(self, first_page=3):
+        """ Copy unchanged stuffs to output folder and modify necessary files. """
+        # Copy all other unchanged stuffs
+        copytree(os.path.join(self.input, "css"), os.path.join(self.output, "css"))
+        copytree(os.path.join(self.input, "html"), os.path.join(self.output, "html"))
+        copytree(os.path.join(self.input, "META-INF"), os.path.join(self.output, "META-INF"))
+        copytree(os.path.join(self.input, "misc"), os.path.join(self.output, "misc"))
+        os.makedirs(os.path.join(self.output, "xml"))
+        copyfile(os.path.join(self.input, "mimetype"), os.path.join(self.output, "mimetype"))
+        copyfile(os.path.join(self.input, self.createby_img), os.path.join(self.output, self.createby_img))
+        copyfile(os.path.join(self.input, self.css), os.path.join(self.output, self.css))
+        copyfile(os.path.join(self.input, self.font01), os.path.join(self.output, self.font01))
+
+        # opf
+        with open(os.path.join(self.input, "tpl.opf"), 'r', encoding="utf-8") as opf:
+            self.opf_template = BeautifulSoup(opf, 'html.parser')
+
+            identifier = self.opf_template.find('dc:identifier')
+            identifier.string = self.identifier
+            title = self.opf_template.find('dc:title')
+            title.string = self.title
+            language = self.opf_template.find('dc:language')
+            language.string = self.language
+            creator = self.opf_template.find('dc:creator')
+            creator.string = self.creator
+            publisher = self.opf_template.find('dc:publisher')
+            publisher.string = self.publisher
+            date = self.opf_template.find('dc:date')
+            date.string = self.date
+            rights = self.opf_template.find('dc:rights')
+            rights.string = self.rights
+            
+            new_tag = self.opf_template.new_tag("meta", property="rendition:layout")
+            new_tag.string = "pre-paginated"
+            self.opf_template.metadata.append(new_tag)
+            new_tag = self.opf_template.new_tag("meta", property="rendition:spread")
+            new_tag.string = "landscape"
+            self.opf_template.metadata.append(new_tag)
+            new_tag = self.opf_template.new_tag("meta", property="rendition:orientation")
+            new_tag.string = "auto"
+            self.opf_template.metadata.append(new_tag)
+
+            item_ncx = self.opf_template.find("item", id="ncx")
+            item_ncx["href"] = "xml/volmoe.ncx"
+
+            item_page = self.opf_template.find("item", id="Page_{PAGE_ID}")
+            item_page.decompose()
+            item_img = self.opf_template.find("item", id="img_{IMG_ID}")
+            item_img.decompose()
+            itemref_page = self.opf_template.find("itemref", idref="Page_{PAGE_ID}")
+            itemref_page.decompose()
+
+            item_page_createby = self.opf_template.find("item", id="Page_createby")
+            item_page_cover = self.opf_template.find("item", id="Page_cover")
+            item_page_cover["href"] = "html/cover.jpg.html"
+
+            item_cover_img = self.opf_template.find("item", id="cover_img")
+            item_cover_img["href"] = self.cover_img
+            item_cover_img["media-type"] = "image/jpeg" if self.cover_img.endswith("jpg") else "image/png"
+            item_img_createby = self.opf_template.find("item", id="img_createby")
+
+            self.opf_template.spine["page-progression-direction"] = "rtl"
+            itemref_cover = self.opf_template.find("itemref", idref="Page_cover")
+            itemref_cover["properties"] = "rendition:page-spread-center"
+            itemref_createby = self.opf_template.find("itemref", idref="Page_createby")
+            ref_cover = self.opf_template.find("reference", type="cover")
+            ref_cover["href"] = self.cover_img
+
+            for i in self.pages:
+                index = self.pages.index(i)
+                new_page = self.opf_template.new_tag("item", id=i["ref"], href=i["href"], attrs={"media-type": "application/xhtml+xml"})
+                item_page_createby.insert_before(new_page)
+                new_img = self.opf_template.new_tag("item", id=i["id"], href=i["img"], attrs={"media-type": "image/jpeg" if i["img"].endswith("jpg") else "image/png"})
+                item_img_createby.insert_before(new_img)
+                new_ref = self.opf_template.new_tag("itemref", idref=i["ref"])
+                if index < first_page - 1:
+                    new_ref["properties"] = "rendition:page-spread-center"
+                else:
+                    new_ref["properties"] = "page-spread-left" if ( index + 1) % 2 else "page-spread-right"
+                itemref_createby.insert_before(new_ref)
+      
+        with open(os.path.join(self.output, "volmoe.opf"), 'w', encoding="utf-8") as f:
+            f.write(str(self.opf_template.prettify()))
+
+        # ncx
+        with open(os.path.join(self.input, "xml", "tpl.ncx"), 'r', encoding="utf-8") as ncx:
+            self.ncx_template = BeautifulSoup(ncx, 'html.parser')
+
+            identifier = self.ncx_template.find("meta", content="{BOOK_VOL_ID}")
+            identifier["content"] = self.identifier
+            for e in self.ncx_template.find_all("meta", content="{TOTAL_PAGE_COUNT}"):
+                e["content"] = len(self.pages)
+            for d in self.ncx_template.find_all("text"):
+                if d.parent.name == "doctitle":
+                    d.string = self.title
+                elif d.parent.name == "docauthor":
+                    d.string = self.creator
+                elif d.parent.parent and d.parent.parent["id"] == "Page_createby":
+                    d.string = self.build_date
+                    d.parent.parent["playorder"] = len(self.pages)
+
+            navpt_page = self.ncx_template.find("navpoint", id="Page_{PAGE_ID}")
+            navpt_page.decompose()
+            navpt_createby = self.ncx_template.find("navpoint", id="Page_createby")
+
+            if self.toc_changed:
+                print("self toc ", self.toc)
+                for row in self.toc:  
+                    print("row: ", row)        
+                    chapter = row[0]
+                    page = int(row[-1])
+                    i = self.pages[page-1]
+                    print("Ch {} page {}, item {}".format(chapter, page, i))
+
+                    new_page = self.ncx_template.new_tag("navPoint", id=i["ref"], playorder=str(page))
+                    label = self.ncx_template.new_tag("navLabel")
+                    text = self.ncx_template.new_tag("text")
+                    text.string = chapter
+                    label.append(text)
+                    new_page.append(label)
+                    content = self.ncx_template.new_tag("content", src="../"+i["href"])
+                    new_page.append(content)
+                    navpt_createby.insert_before(new_page)
+            else:
+                for i in self.pages:
+                    index = self.pages.index(i)
+                    
+                    new_page = self.ncx_template.new_tag("navPoint", id=i["ref"], playorder=str(index+1))
+                    label = self.ncx_template.new_tag("navLabel")
+                    text = self.ncx_template.new_tag("text")
+                    text.string = "第 " + str(index+1) + " 頁"
+                    label.append(text)
+                    new_page.append(label)
+                    content = self.ncx_template.new_tag("content", src="../"+i["href"])
+                    new_page.append(content)
+                    navpt_createby.insert_before(new_page)
+        #print("after:", self.ncx_template)
+        with open(os.path.join(self.output, "xml", "volmoe.ncx"), 'w', encoding="utf-8") as f:
+            f.write(self.ncx_template.prettify())
+        return
+
+    def repack(self):
+        """ Pack everything back to an ePub file. """
+        # create a ZipFile object
+        with ZipFile(os.path.join(self.root, self.name), 'w', zipfile.ZIP_STORED) as zipObj:
+            logging.debug("Created ePub begin.")
+            # Add multiple files to the zip
+            for folderName, subfolders, filenames in os.walk(self.output):
+                #print("folder:", folderName)
+                basename = os.path.basename(folderName)
+                if basename == self.name:
+                    basename = ''
+                for f in filenames:
+                    #print("file: ", os.path.join(folderName, f) + ', ' + os.path.join(basename, f))
+                    zipObj.write(os.path.join(folderName, f), os.path.join(basename, f))
+
+            logging.debug("Created ePub at " + self.output)
+        return
+
+
+    def get_info(self, type: str) -> str:
+        type = type.lower()
+        if type == "title":
+            return self.title
+        elif type == "author":
+            return self.creator
+        elif type == "pagecount":
+            return str(len(self.pages))
+        else:
+            return ""
+
+    def get_cover_page(self, format="Path"):
+        return os.path.join(self.input, self.cover_img)
+
     def get_page(self, page_num, format="Path"):
         """ Return page image. page_num starts from 1. """
         if format == "PIL":
@@ -182,12 +393,15 @@ class eBook(object):
             return os.path.join(self.input, self.pages[page_num-1]["img"])
 
     def get_enhance_page(self, page_num, contrast) -> Image:
+        image = self.get_page(page_num, format="PIL")
+        return self.__enhance_image(image, contrast)
+
+    def __enhance_image(self, image: Image, contrast) -> Image:
         factor = (259 * (contrast + 255)) / (255 * (259 - contrast))
         def contrast_func(c):
             return 128 + factor * (c - 128)
 
         try:
-            image = self.get_page(page_num, format="PIL")
             # Enhance image
             # Auto contrast
             new_image = image.point(contrast_func)
