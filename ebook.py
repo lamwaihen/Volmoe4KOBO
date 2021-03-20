@@ -211,14 +211,23 @@ class eBook(object):
     def generate_new_structure(self, first_page=3):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
         # Copy all other unchanged stuffs
+        if not os.path.exists(os.path.join(self.output, "css")):
         copytree(os.path.join(self.input, "css"), os.path.join(self.output, "css"))
+        if not os.path.exists(os.path.join(self.output, "html")):
         copytree(os.path.join(self.input, "html"), os.path.join(self.output, "html"))
+        if not os.path.exists(os.path.join(self.output, "META-INF")):
         copytree(os.path.join(self.input, "META-INF"), os.path.join(self.output, "META-INF"))
+        if not os.path.exists(os.path.join(self.output, "misc")):
         copytree(os.path.join(self.input, "misc"), os.path.join(self.output, "misc"))
+        if not os.path.exists(os.path.join(self.output, "xml")):
         os.makedirs(os.path.join(self.output, "xml"))
+        if not os.path.exists(os.path.join(self.output, "mimetype")):
         copyfile(os.path.join(self.input, "mimetype"), os.path.join(self.output, "mimetype"))
+        if not os.path.exists(os.path.join(self.output, self.createby_img)):
         copyfile(os.path.join(self.input, self.createby_img), os.path.join(self.output, self.createby_img))
+        if not os.path.exists(os.path.join(self.output, self.css)):
         copyfile(os.path.join(self.input, self.css), os.path.join(self.output, self.css))
+        if not os.path.exists(os.path.join(self.output, self.font01)):
         copyfile(os.path.join(self.input, self.font01), os.path.join(self.output, self.font01))
 
         # opf
@@ -290,7 +299,8 @@ class eBook(object):
                 itemref_createby.insert_before(new_ref)
       
         with open(os.path.join(self.output, "volmoe.opf"), 'w', encoding="utf-8") as f:
-            f.write(str(self.opf_template.prettify()))
+            # self.opf_template can't use prettify() or rotation won't work on KOBO.
+            f.write(str(self.opf_template))
 
         # ncx
         with open(os.path.join(self.input, "xml", "tpl.ncx"), 'r', encoding="utf-8") as ncx:
@@ -347,7 +357,21 @@ class eBook(object):
         #print("after:", self.ncx_template)
         with open(os.path.join(self.output, "xml", "volmoe.ncx"), 'w', encoding="utf-8") as f:
             f.write(self.ncx_template.prettify())
-        return
+        
+        # html
+        for i, page in enumerate([{'href': 'html/cover.jpg.html', 'id': 'cover_img', 'img': self.cover_img, 'ref': 'Page_cover'}] + self.pages):
+            image = Image.open(os.path.join(self.input, page["img"]))
+            width, height = image.size
+            # Open page to insert viewport
+            with open(os.path.join(self.output, page["href"]), 'r', encoding="utf-8") as tpl:
+                html = BeautifulSoup(tpl, 'html.parser')
+
+                viewport = "width={}, height={}".format(width, height)
+                meta_viewport = html.new_tag("meta", content=viewport, attrs={'name':'viewport'})
+                html.head.append(meta_viewport)
+
+                with open(os.path.join(self.output, page["href"]), 'w', encoding="utf-8") as f:
+                    f.write(str(html))            
 
     def repack(self):
         """ Pack everything back to an ePub file. """
