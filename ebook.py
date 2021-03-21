@@ -13,7 +13,8 @@ from bs4 import BeautifulSoup
 import re
 import itertools
 
-from PIL import Image, ImageOps, ImageEnhance
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+import image_helper
 
 class eBook(object):
     def __init__(self, path):
