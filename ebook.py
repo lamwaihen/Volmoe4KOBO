@@ -91,20 +91,26 @@ class eBook(object):
             self.rights = self.opf.find('dc:rights').text
             logging.info("rights: " + self.rights)
 
-            cover_img = self.opf.find("item", id="cover_img")
-            self.cover_img = cover_img.get("href")
-            logging.info("cover_img: " + str(self.cover_img))
+            self.cover = {
+                "href": self.opf.find("item", id="Page_cover").get("href"), 
+                "id": "cover_img", 
+                "img": self.opf.find("item", id="cover_img").get("href"), 
+                "ref": "Page_cover"
+            }
+            logging.info("cover: " + str(self.cover))
 
-            createby_img = self.opf.find("item", id="img_createby")
-            self.createby_img = createby_img.get("href")
-            logging.info("createby_img: " + str(self.createby_img))
+            self.createby = {
+                "href": self.opf.find("item", id="Page_createby").get("href"), 
+                "id": "img_createby", 
+                "img": self.opf.find("item", id="img_createby").get("href"), 
+                "ref": "Page_createby"
+            }
+            logging.info("createby: " + str(self.createby))
 
-            css = self.opf.find("item", id="css")
-            self.css = css.get("href")
+            self.css = self.opf.find("item", id="css").get("href")
             logging.info("css: " + str(self.css))
 
-            font01 = self.opf.find("item", id="font01")
-            self.font01 = font01.get("href")
+            self.font01 = self.opf.find("item", id="font01").get("href")
             logging.info("font01: " + str(self.font01))                        
         
             self.pages = []
@@ -224,8 +230,8 @@ class eBook(object):
         os.makedirs(os.path.join(self.output, "xml"))
         if not os.path.exists(os.path.join(self.output, "mimetype")):
         copyfile(os.path.join(self.input, "mimetype"), os.path.join(self.output, "mimetype"))
-        if not os.path.exists(os.path.join(self.output, self.createby_img)):
-        copyfile(os.path.join(self.input, self.createby_img), os.path.join(self.output, self.createby_img))
+        if not os.path.exists(os.path.join(self.output, self.createby["img"])):
+            copyfile(os.path.join(self.input, self.createby["img"]), os.path.join(self.output, self.createby["img"]))
         if not os.path.exists(os.path.join(self.output, self.css)):
         copyfile(os.path.join(self.input, self.css), os.path.join(self.output, self.css))
         if not os.path.exists(os.path.join(self.output, self.font01)):
@@ -262,6 +268,8 @@ class eBook(object):
 
             item_ncx = self.opf_template.find("item", id="ncx")
             item_ncx["href"] = "xml/volmoe.ncx"
+            item_navdoc = self.opf_template.new_tag("item", href="html/navigation-documents.xhtml", attrs={"id": "toc", "media-type": "application/xhtml+xml"}, properties="nav")
+            item_ncx.insert_before(item_navdoc)
 
             item_page = self.opf_template.find("item", id="Page_{PAGE_ID}")
             item_page.decompose()
@@ -275,8 +283,8 @@ class eBook(object):
             item_page_cover["href"] = "html/cover.jpg.html"
 
             item_cover_img = self.opf_template.find("item", id="cover_img")
-            item_cover_img["href"] = self.cover_img
-            item_cover_img["media-type"] = "image/jpeg" if self.cover_img.endswith("jpg") else "image/png"
+            item_cover_img["href"] = self.cover["img"]
+            item_cover_img["media-type"] = "image/jpeg" if self.cover["img"].endswith("jpg") else "image/png"
             item_img_createby = self.opf_template.find("item", id="img_createby")
 
             self.opf_template.spine["page-progression-direction"] = "rtl"
@@ -284,7 +292,7 @@ class eBook(object):
             itemref_cover["properties"] = "rendition:page-spread-center"
             itemref_createby = self.opf_template.find("itemref", idref="Page_createby")
             ref_cover = self.opf_template.find("reference", type="cover")
-            ref_cover["href"] = self.cover_img
+            ref_cover["href"] = self.cover["img"]
 
             for i in self.pages:
                 index = self.pages.index(i)
@@ -318,7 +326,7 @@ class eBook(object):
                     d.string = self.creator
                 elif d.parent.parent and d.parent.parent["id"] == "Page_createby":
                     d.string = self.build_date
-                    d.parent.parent["playorder"] = len(self.pages)
+                    d.parent.parent["playorder"] = len(self.pages) + 2 # Add 2 because cover and createby also count.
 
             navpt_page = self.ncx_template.find("navpoint", id="Page_{PAGE_ID}")
             navpt_page.decompose()
@@ -343,16 +351,23 @@ class eBook(object):
                     new_page.append(content)
                     navpt_createby.insert_before(new_page)
             else:
-                for i in self.pages:
-                    index = self.pages.index(i)
+                for i, page in enumerate([self.cover] + self.pages):
+                    if i == 0:
+                        title = "封面"
+                    elif i < first_page:
+                        title = "插圖"
+                    elif i == first_page + 1:
+                        title = "目錄"
+                    else:
+                        title = "第 " + str(i - first_page + 1) + " 頁"
                     
-                    new_page = self.ncx_template.new_tag("navPoint", id=i["ref"], playorder=str(index+1))
+                    new_page = self.ncx_template.new_tag("navPoint", id=page["ref"], playorder=str(i+1))
                     label = self.ncx_template.new_tag("navLabel")
                     text = self.ncx_template.new_tag("text")
-                    text.string = "第 " + str(index+1) + " 頁"
+                    text.string = title
                     label.append(text)
                     new_page.append(label)
-                    content = self.ncx_template.new_tag("content", src="../"+i["href"])
+                    content = self.ncx_template.new_tag("content", src="../"+page["href"])
                     new_page.append(content)
                     navpt_createby.insert_before(new_page)
         #print("after:", self.ncx_template)
@@ -360,7 +375,7 @@ class eBook(object):
             f.write(self.ncx_template.prettify())
         
         # html
-        for i, page in enumerate([{'href': 'html/cover.jpg.html', 'id': 'cover_img', 'img': self.cover_img, 'ref': 'Page_cover'}] + self.pages):
+        for page in [self.cover] + self.pages:
             image = Image.open(os.path.join(self.input, page["img"]))
             width, height = image.size
             # Open page to insert viewport
@@ -373,6 +388,40 @@ class eBook(object):
 
                 with open(os.path.join(self.output, page["href"]), 'w', encoding="utf-8") as f:
                     f.write(str(html))            
+
+        # navigation-documents
+        with open("./Res/navigation-documents.html", 'r', encoding="utf-8") as nd:
+            html = BeautifulSoup(nd, 'html.parser')
+
+            toc = html.find("nav", id="toc")
+            guide = html.find("nav", id="guide")
+
+            for i, page in enumerate([self.cover] + self.pages):
+                if i == 0:
+                    title = "封面"
+                elif i < first_page:
+                    title = "插圖"
+                elif i == first_page + 1:
+                    title = "目錄"
+                else:
+                    title = "第 " + str(i - first_page + 1) + " 頁"                
+
+                toc_li = html.new_tag("li")
+                toc_a = html.new_tag("a", href=page["href"].replace("html/", ""))
+                toc_a.string = title
+                toc_li.append(toc_a)
+                toc.ol.append(toc_li)
+
+            for guide_li in guide.find_all("li"):
+                if guide_li.a.string == "表紙":
+                    guide_li.a["href"] = self.cover["href"].replace("html/", "")
+                elif guide_li.a.string == "目次":
+                    guide_li.a["href"] = self.pages[0]["href"].replace("html/", "")
+                elif guide_li.a.string == "本編":
+                    guide_li.a["href"] = self.pages[first_page - 1]["href"].replace("html/", "")
+
+            with open(os.path.join(self.output, "html", "navigation-documents.xhtml"), 'w', encoding="utf-8") as f:
+                f.write(html.prettify())
 
     def repack(self):
         """ Pack everything back to an ePub file. """
@@ -405,7 +454,7 @@ class eBook(object):
             return ""
 
     def get_cover_page(self, format="Path"):
-        return os.path.join(self.input, self.cover_img)
+        return os.path.join(self.input, self.cover["img"])
 
     def get_page(self, page_num, format="Path"):
         """ Return page image. page_num starts from 1. """
