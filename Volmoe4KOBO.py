@@ -1,16 +1,15 @@
+import io
+import os
 import sys
 import threading
+
+from shutil import rmtree
+from tempfile import gettempdir
+
 from PyQt5 import QtWidgets, QtGui, QtCore
 from UI.Main import Ui_MainWindow
 
 from ebook import eBook
-
-import os
-from shutil import rmtree
-from tempfile import gettempdir
-
-import io
-from PIL.ImageQt import ImageQt
 
 class MainWindow(QtWidgets.QMainWindow):
     books = []

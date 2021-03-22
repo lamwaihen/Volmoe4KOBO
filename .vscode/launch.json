@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "Python: 目前檔案",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/Volmoe4KOBO.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}

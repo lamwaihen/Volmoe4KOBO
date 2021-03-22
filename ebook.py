@@ -135,22 +135,28 @@ class eBook(object):
     def image_enhance(self, contrast=32):
         """ https://stackoverflow.com/questions/42045362/change-contrast-of-image-in-pil """
         
+        if not os.path.exists(os.path.join(self.output, 'image')):
         os.makedirs(os.path.join(self.output, 'image'))
 
         # Handle the cover page
-        image = Image.open(os.path.join(self.input, self.cover_img))
-        image = self.__enhance_image(image, contrast)
-        image.save(os.path.join(self.output, self.cover_img))
+        image = Image.open(os.path.join(self.input, self.cover["img"]))
+        image = self.__contrast_image(image, contrast)
+
+        image.save(os.path.join(self.output, self.cover["img"]))
 
         # Then all other pages
         for i in self.pages:
             print("i: {}".format(i))
             image = Image.open(os.path.join(self.input, i["img"]))
-            new_image = self.__enhance_image(image, contrast)
+
+            # Contrast
+            new_image = self.__contrast_image(image, contrast)
 
             # TODO: Upscaling
 
             # TODO: Straighten
+            new_image = self.__deskew_image(new_image)
+            new_image = self.__sharpen_image(new_image, 1)
 
             # TODO: Dewrap
 
@@ -468,9 +474,11 @@ class eBook(object):
 
     def get_enhance_page(self, page_num, contrast) -> Image:
         image = self.get_page(page_num, format="PIL")
-        return self.__enhance_image(image, contrast)
+        image = self.__contrast_image(image, contrast)
+        image = self.__deskew_image(image)
+        return self.__sharpen_image(image, 1 if contrast == 32 else 2)
 
-    def __enhance_image(self, image: Image, contrast) -> Image:
+    def __contrast_image(self, image: Image, contrast: int = 32) -> Image:
         factor = (259 * (contrast + 255)) / (255 * (259 - contrast))
         def contrast_func(c):
             return 128 + factor * (c - 128)
@@ -483,3 +491,19 @@ class eBook(object):
             logging.warning("Exception on {}".format(image), exc_info=True)
 
         return new_image
+
+    def __sharpen_image(self, image: Image, method: int = 1) -> Image:
+        if method == 1:
+            # https://pythontic.com/image-processing/pillow/sharpen-filter
+            image = image.filter(ImageFilter.SHARPEN)
+        else:
+            # https://pythonexamples.org/python-pillow-adjust-image-sharpness/
+            enhancer = ImageEnhance.Sharpness(image)
+            image = enhancer.enhance(2)
+        return image
+
+    def __deskew_image(self, image: Image) -> Image:
+        """ To straighten image. """
+        
+        angle = image_helper.getSkewAngle(image)
+        return image_helper.rotateImage(image, angle)
