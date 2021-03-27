@@ -211,6 +211,15 @@ def rotateImage(image: Image, angle: float) -> Image:
     cv2.imwrite("C:\\Users\\lamwa\\AppData\\Local\\Temp\\ebook\\preview_r.jpg", cvImage)
     return cv2pil(cvImage)
 
+def getImageSize(image_path: str):
+    """ Open image from given path and return its width and height. """
+    with cv2.imdecode(numpy.fromfile(image_path, dtype=numpy.uint8), cv2.IMREAD_UNCHANGED) as im:
+        height, width = im.shape[0], im.shape[1]
+        return width, height
+
+    logging.critical("Failed to open ", image_path)
+    return 0, 0
+
 def pil2cv(image: Image) -> numpy.uint8:
     cvImage = cv2.cvtColor(numpy.array(image), cv2.COLOR_RGB2BGR)
     return cvImage

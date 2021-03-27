@@ -133,12 +133,20 @@ class eBook(object):
                 with open(os.path.join(self.input, h.get("href")), "r", encoding="utf-8") as html_file:
                     html = BeautifulSoup(html_file, "html.parser")
                     img = html.find("img")
+                    width, height = image_helper.getImageSize(os.path.join(self.input, img.get("src").replace("../", "")))
                     page_num = len(self.pages)+1
-                    self.pages.append({"href": h.get("href"), "ref": "Page_{}".format(page_num), "img": img.get("src").replace("../", ""), "id": "img_{}".format(page_num)})
+                    page = {
+                        "href": h.get("href"), 
+                        "ref": "Page_{}".format(page_num), 
+                        "img": img.get("src").replace("../", ""), 
+                        "id": "img_{}".format(page_num),
+                        "width": width,
+                        "height": height
+                        }
+                    logging.debug("Page{}: {}".format(i, page))
+                    self.pages.append(page)
                     signal.emit(self.__get_progess_percentage(i, len(htmls), 50, 90))
 
-            logging.debug("All pages: {}".format(self.pages))
-        
         # Load ncx
         ncxs_found = dict((file, os.path.getsize(file)) for file in self.__find_files(self.input, ".ncx"))
         self.ncx = max(ncxs_found, key=ncxs_found.get)
@@ -221,7 +229,7 @@ class eBook(object):
                 imgb = img.crop((0, 0, height / 2, width))
 
                 # Update page list
-                href, ref, img, id = [new_pages[index][k] for k in ["href", "ref", "img", "id"]]
+                href, ref, img, id, width, height = [new_pages[index][k] for k in ["href", "ref", "img", "id", "width", "height"]]
                 x = href.rfind(".")
                 y = img.rfind(".")
                 # Open old page as template
@@ -233,13 +241,13 @@ class eBook(object):
                 remove_href.append(os.path.join(self.input, href))
                 remove_img.append(os.path.join(self.input, img))
                 # Insert left page
-                new_pages.insert(index, {"href": href[:x]+"b"+href[x:], "ref": ref+"b", "img": img[:y]+"b"+img[y:], "id": id+"b"})
+                new_pages.insert(index, {"href": href[:x]+"b"+href[x:], "ref": ref+"b", "img": img[:y]+"b"+img[y:], "id": id+"b", "width": height/2, "height": width})
                 imgb.save(os.path.join(self.input, new_pages[index]["img"]))
                 html.find("img")["src"] = os.path.join("..", new_pages[index]["img"])
                 with open(os.path.join(self.input, new_pages[index]["href"]), 'w', encoding="utf-8") as f:
                     f.write(str(html))
                 # Insert right page
-                new_pages.insert(index, {"href": href[:x]+"a"+href[x:], "ref": ref+"a", "img": img[:y]+"a"+img[y:], "id": id+"a"})
+                new_pages.insert(index, {"href": href[:x]+"a"+href[x:], "ref": ref+"a", "img": img[:y]+"a"+img[y:], "id": id+"a", "width": height/2, "height": width})
                 imga.save(os.path.join(self.input, new_pages[index]["img"]))
                 html.find("img")["src"] = os.path.join("..", new_pages[index]["img"])
                 with open(os.path.join(self.input, new_pages[index]["href"]), 'w', encoding="utf-8") as f:
