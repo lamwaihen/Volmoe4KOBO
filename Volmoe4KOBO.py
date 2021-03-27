@@ -70,19 +70,10 @@ class MainWindow(QtWidgets.QMainWindow):
         #tempFile = os.path.join(self.tmp, filename)
         #copyfile(path[0], tempFile)
 
-        book = eBook(path[0])
-        book.extract()
-        book.parse()
-        self.books.append(book)
         
-        # update UI
-        self.ui.labelPath.setText(filename)
-        self.ui.labelTitle.setText(book.get_info("Title"))
-        self.ui.labelAuthor.setText(book.get_info("Author"))
-        self.ui.labelPageCount.setText(book.get_info("PageCount"))
-        self.ui.imageCover.setPixmap(QtGui.QPixmap(book.get_cover_page()))
-
-        self.ui.buttonBeginNext.setEnabled(True)
+        self.book = eBook(path[0])
+        self.book.load(self.loadProgressChanged, self.loadCompleted)
+        return
 
     def nextButtonClicked(self):
         x = self.ui.toolBox.currentIndex()
@@ -90,7 +81,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def showCurrentPage(self):
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
-        if currentPage == 'pageFirstPage':
+        if currentPage == 'pageBegin':
+            self.ui.progressBarLoad.hide()
+        elif currentPage == 'pageFirstPage':
             for book in self.books:
                 size = int(book.get_info("PageCount"))
                 self.ui.scrollFirstPage.setRange(1, size)
@@ -113,6 +106,23 @@ class MainWindow(QtWidgets.QMainWindow):
         elif currentPage == 'pageUpload':
             for book in self.books:
                 print("hello")
+
+    def loadProgressChanged(self, value):
+        self.ui.progressBarLoad.show()
+        self.ui.progressBarLoad.setValue(value)
+
+    def loadCompleted(self):
+        #self.book.parse()
+        self.books.append(self.book)
+        
+        # update UI
+        self.ui.labelPath.setText("filename")
+        self.ui.labelTitle.setText(self.book.get_info("Title"))
+        self.ui.labelAuthor.setText(self.book.get_info("Author"))
+        self.ui.labelPageCount.setText(self.book.get_info("PageCount"))
+        self.ui.imageCover.setPixmap(QtGui.QPixmap(self.book.get_cover_page()))
+
+        self.ui.buttonBeginNext.setEnabled(True)
 
     def firstPagePreviewChanged(self):
         for book in self.books:

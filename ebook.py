@@ -1,4 +1,5 @@
 import os
+from PyQt5.QtCore import QThread, pyqtSignal
 
 import logging
 FORMAT = '%(asctime)s %(levelname)s %(module)s::%(funcName)s: %(message)s'
@@ -15,6 +16,16 @@ import itertools
 
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 import image_helper
+
+class ProgressThread(QThread):
+    progressSignal = pyqtSignal(int)
+    def __init__(self, workerFunc, **options):
+        super().__init__()
+        self.func = workerFunc
+        self.options = options
+
+    def run(self):
+        self.func(self.progressSignal, **self.options)
 
 class eBook(object):
     def __init__(self, path):
@@ -54,83 +65,102 @@ class eBook(object):
         rmtree(self.input, ignore_errors=True)
         return
 
-    def extract(self):
-        """ Extract eBook file as zip. """
-        try:
-        # Load eBook file as ZipFile object.
-            with ZipFile(self.path, 'r') as zipObj:
-                # Extract all the contents of zip file in temp directory
-                logging.debug("Extracting to " + self.input)
-                zipObj.extractall(self.input) 
-                logging.debug("Extracted to " + self.input)
-                #!cp os.path.join(self.input, "image") os.path.join(self.input, "image_old")
-        except:
-            logging.warning("Exception on {}".format(self.path), exc_info=True)
-        return
+    def _load(self, signal: pyqtSignal, **options):
+        """ Thread function that unzip the epub file to temp folder. """
+        logging.info("Thread function begin!")
+        #file_path = options.get("file_path")
+        #extract_path = options.get("extract_path")
 
-    def parse(self):
-        """ Parse the ePub structure. """
-        # Load the templates
+        # Unzip the file.
+        zf = zipfile.ZipFile(self.path)
+        uncompress_size = sum((file.file_size for file in zf.infolist()))
+        extracted_size = 0
         
+        for file in zf.infolist():
+            extracted_size += file.file_size
+            percentage = int(extracted_size * 100/uncompress_size)
+            logging.debug("Extract percentage: {}".format(percentage))
+            signal.emit(self.__get_progess_percentage(extracted_size, uncompress_size, 0, 50))
+            zf.extract(file, self.input)
 
-        # Load opf
-        with open(os.path.join(self.input, "volmoe.opf"), 'r', encoding="utf-8") as opf:
-            self.opf = BeautifulSoup(opf, 'html.parser')
-            self.identifier = self.opf.find('dc:identifier').text
+        # Parse the ePub structure.
+        # Load opf (we need the largest one, not template)
+        opfs_found = dict((file, os.path.getsize(file)) for file in self.__find_files(self.input, ".opf"))
+        self.opf = max(opfs_found, key=opfs_found.get)
+        with open(self.opf, 'r', encoding="utf-8") as opf_file:
+            opf = BeautifulSoup(opf_file, 'html.parser')
+            self.identifier = opf.find('dc:identifier').text
             logging.info("identifier: " + self.identifier)
-            self.title = self.opf.find('dc:title').text
+            self.title = opf.find('dc:title').text
             logging.info("Title: " + self.title)
-            self.language = self.opf.find('dc:language').text
+            self.language = opf.find('dc:language').text
             logging.info("language: " + self.language)
-            self.creator = self.opf.find('dc:creator').text
+            self.creator = opf.find('dc:creator').text
             logging.info("creator: " + self.creator)
-            self.publisher = self.opf.find('dc:publisher').text
+            self.publisher = opf.find('dc:publisher').text
             logging.info("publisher: " + self.publisher)
-            self.date = self.opf.find('dc:date').text
+            self.date = opf.find('dc:date').text
             logging.info("date: " + self.date)
-            self.rights = self.opf.find('dc:rights').text
+            self.rights = opf.find('dc:rights').text
             logging.info("rights: " + self.rights)
 
             self.cover = {
-                "href": self.opf.find("item", id="Page_cover").get("href"), 
+                "href": opf.find("item", id="Page_cover").get("href"), 
                 "id": "cover_img", 
-                "img": self.opf.find("item", id="cover_img").get("href"), 
+                "img": opf.find("item", id="cover_img").get("href"), 
                 "ref": "Page_cover"
             }
             logging.info("cover: " + str(self.cover))
 
             self.createby = {
-                "href": self.opf.find("item", id="Page_createby").get("href"), 
+                "href": opf.find("item", id="Page_createby").get("href"), 
                 "id": "img_createby", 
-                "img": self.opf.find("item", id="img_createby").get("href"), 
+                "img": opf.find("item", id="img_createby").get("href"), 
                 "ref": "Page_createby"
             }
             logging.info("createby: " + str(self.createby))
 
-            self.css = self.opf.find("item", id="css").get("href")
+            self.css = opf.find("item", id="css").get("href")
             logging.info("css: " + str(self.css))
 
-            self.font01 = self.opf.find("item", id="font01").get("href")
+            self.font01 = opf.find("item", id="font01").get("href")
             logging.info("font01: " + str(self.font01))                        
         
             self.pages = []
-            htmls = self.opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
+            htmls = opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
             # Follow to the html file to get actual image name.
-            for h in htmls:
+            for i, h in enumerate(htmls):
                 with open(os.path.join(self.input, h.get("href")), "r", encoding="utf-8") as html_file:
                     html = BeautifulSoup(html_file, "html.parser")
                     img = html.find("img")
                     page_num = len(self.pages)+1
                     self.pages.append({"href": h.get("href"), "ref": "Page_{}".format(page_num), "img": img.get("src").replace("../", ""), "id": "img_{}".format(page_num)})
+                    signal.emit(self.__get_progess_percentage(i, len(htmls), 50, 90))
 
             logging.debug("All pages: {}".format(self.pages))
         
         # Load ncx
-        with open(os.path.join(self.input, "xml", "volmoe.ncx"), 'r', encoding="utf-8") as ncx:
-            self.ncx = BeautifulSoup(ncx, 'html.parser')
+        ncxs_found = dict((file, os.path.getsize(file)) for file in self.__find_files(self.input, ".ncx"))
+        self.ncx = max(ncxs_found, key=ncxs_found.get)
+        with open(self.ncx, 'r', encoding="utf-8") as ncx_file:
+            ncx = BeautifulSoup(ncx_file, 'html.parser')
        
-            np = self.ncx.find('navpoint', id="Page_createby")
+            np = ncx.find('navpoint', id="Page_createby")
             self.build_date = np.find('text').string
+
+        signal.emit(100)
+
+    def load(self, funcCountChanged, funcCompleted):
+        """ Extract eBook file as zip. """
+        try:
+            # Create thread to extract ePub as zip and parse its structure.
+            self.extractThread = ProgressThread(self._load)
+            self.extractThread.progressSignal.connect(funcCountChanged)
+            self.extractThread.finished.connect(funcCompleted)
+            self.extractThread.start()
+        except:
+            logging.warning("Exception on {}".format(self.path), exc_info=True)
+        return
 
     def image_enhance(self, contrast=32):
         """ https://stackoverflow.com/questions/42045362/change-contrast-of-image-in-pil """
@@ -477,6 +507,18 @@ class eBook(object):
         image = self.__contrast_image(image, contrast)
         image = self.__deskew_image(image)
         return self.__sharpen_image(image, 1 if contrast == 32 else 2)
+
+    def __find_files(self, path, ext) -> []:
+        """ Find all files in given path with extension """
+        files_found = []
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                if file.endswith(ext):
+                    files_found.append(os.path.join(root, file))
+        return files_found
+
+    def __get_progess_percentage(self, value, base, range_min, range_max) -> int:
+        return float(value) / base * (range_max - range_min) + range_min
 
     def __contrast_image(self, image: Image, contrast: int = 32) -> Image:
         factor = (259 * (contrast + 255)) / (255 * (259 - contrast))

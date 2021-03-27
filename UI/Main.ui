@@ -188,10 +188,34 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
+            <property name="styleSheet">
+             <string notr="true">background-color: rgb(149, 193, 193);</string>
+            </property>
           <property name="text">
            <string>選取檔案…</string>
           </property>
+            <property name="default">
+             <bool>false</bool>
+            </property>
+            <property name="flat">
+             <bool>false</bool>
+            </property>
          </widget>
+        </item>
+          <item row="0" column="2">
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
         </item>
         <item>
          <layout class="QGridLayout" name="gridLayout_1">
