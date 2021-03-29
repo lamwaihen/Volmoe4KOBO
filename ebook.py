@@ -5,6 +5,7 @@ import logging
 FORMAT = '%(asctime)s %(levelname)s %(module)s::%(funcName)s: %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=FORMAT)
 
+from datetime import datetime
 from tempfile import gettempdir
 from shutil import copyfile, copytree, rmtree
 import zipfile
@@ -104,28 +105,26 @@ class eBook(object):
             self.rights = opf.find('dc:rights').text
             logging.info("rights: " + self.rights)
 
+            width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="cover_img").get("href")))
             self.cover = {
-                "href": opf.find("item", id="Page_cover").get("href"), 
-                "id": "cover_img", 
-                "img": opf.find("item", id="cover_img").get("href"), 
-                "ref": "Page_cover"
+                "i-id": "cover_img", 
+                "i-path": opf.find("item", id="cover_img").get("href"), 
+                "width": width,
+                "height": height
             }
+            self.book_width = width
             logging.info("cover: " + str(self.cover))
 
-            self.createby = {
-                "href": opf.find("item", id="Page_createby").get("href"), 
-                "id": "img_createby", 
-                "img": opf.find("item", id="img_createby").get("href"), 
-                "ref": "Page_createby"
+            width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="img_createby").get("href")))
+            self.colophon = {
+                "i-id": "img_createby", 
+                "i-path": opf.find("item", id="img_createby").get("href"), 
+                "width": width,
+                "height": height
             }
-            logging.info("createby: " + str(self.createby))
+            logging.info("colophon: " + str(self.colophon))
 
-            self.css = opf.find("item", id="css").get("href")
-            logging.info("css: " + str(self.css))
 
-            self.font01 = opf.find("item", id="font01").get("href")
-            logging.info("font01: " + str(self.font01))                        
-        
             self.pages = []
             htmls = opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
             # Follow to the html file to get actual image name.
@@ -136,10 +135,8 @@ class eBook(object):
                     width, height = image_helper.getImageSize(os.path.join(self.input, img.get("src").replace("../", "")))
                     page_num = len(self.pages)+1
                     page = {
-                        "href": h.get("href"), 
-                        "ref": "Page_{}".format(page_num), 
-                        "img": img.get("src").replace("../", ""), 
-                        "id": "img_{}".format(page_num),
+                        "i-path": img.get("src").replace("../", ""), 
+                        "i-id": "img_{}".format(page_num),
                         "width": width,
                         "height": height
                         }
@@ -173,19 +170,15 @@ class eBook(object):
     def image_enhance(self, contrast=32):
         """ https://stackoverflow.com/questions/42045362/change-contrast-of-image-in-pil """
         
-        if not os.path.exists(os.path.join(self.output, 'image')):
-        os.makedirs(os.path.join(self.output, 'image'))
-
         # Handle the cover page
-        image = Image.open(os.path.join(self.input, self.cover["img"]))
+        image = Image.open(os.path.join(self.input, self.cover["i-path"]))
         image = self.__contrast_image(image, contrast)
 
-        image.save(os.path.join(self.output, self.cover["img"]))
+        image.save(os.path.join(self.input, self.cover["i-path"]))
 
         # Then all other pages
-        for i in self.pages:
-            print("i: {}".format(i))
-            image = Image.open(os.path.join(self.input, i["img"]))
+        for page in self.pages:
+            image = Image.open(os.path.join(self.input, page["i-path"]))
 
             # Contrast
             new_image = self.__contrast_image(image, contrast)
@@ -194,6 +187,7 @@ class eBook(object):
 
             # TODO: Straighten
             new_image = self.__deskew_image(new_image)
+            if not image.format == "PNG":
             new_image = self.__sharpen_image(new_image, 1)
 
             # TODO: Dewrap
@@ -201,180 +195,130 @@ class eBook(object):
             # TODO: Corner alignment
 
             # Save to output folder
-            new_image.save(os.path.join(self.output, i["img"]))
+            new_image.save(os.path.join(self.input, page["i-path"]), quality=80)
 
         return
     
     def layout_fix(self, first_page=3):
         """ Split, rotate and even straighten images, this may alter the page order of the book. """
         new_pages = self.pages.copy()
-        remove_href = []
-        remove_img = []
-        for i in self.pages[first_page-1:]:
+        for i, page in enumerate(self.pages[first_page-1:]):
             # Get actual index from the list we are going to modify
-            index = new_pages.index(i)
-            img = Image.open(os.path.join(self.input, i["img"]))
-            width, height = img.size
-            if self.width == None:
-                self.width = width
+            img = Image.open(os.path.join(self.input, page["i-path"]))
+
+            width = page["width"]
+            height = page["height"]
             # Found page that needs rotate
-            if height >= self.width * 2:        
-                logging.info("Rotate and split {} at {}".format(i, index))
+            if height >= self.book_width * 2 and width >= self.book_width:
+                logging.info("Rotate and split {} {}".format(page["i-id"], page["i-path"]))
                 # Rotate
                 img = img.rotate(270, expand=True)
-                #plt.imshow(img)
-                #plt.show()
                 # Split to 2
-                imga = img.crop((height / 2, 0, height, width))
-                imgb = img.crop((0, 0, height / 2, width))
-
-                # Update page list
-                href, ref, img, id, width, height = [new_pages[index][k] for k in ["href", "ref", "img", "id", "width", "height"]]
-                x = href.rfind(".")
-                y = img.rfind(".")
-                # Open old page as template
-                with open(os.path.join(self.input, href), 'r', encoding="utf-8") as tpl:
-                    html = BeautifulSoup(tpl, 'html.parser')
-                # Remove old page
-                logging.debug("Deleting : {}".format(new_pages[index]))
-                del new_pages[index]
-                remove_href.append(os.path.join(self.input, href))
-                remove_img.append(os.path.join(self.input, img))
+                imgr = img.crop((height / 2, 0, height, width))
+                imgl = img.crop((0, 0, height / 2, width))
+                # Remove the double spread page
+                img.close()
+                os.remove(os.path.join(self.input, page["i-path"]))
+                index = new_pages.index(page)
+                new_pages.remove(page)
                 # Insert left page
-                new_pages.insert(index, {"href": href[:x]+"b"+href[x:], "ref": ref+"b", "img": img[:y]+"b"+img[y:], "id": id+"b", "width": height/2, "height": width})
-                imgb.save(os.path.join(self.input, new_pages[index]["img"]))
-                html.find("img")["src"] = os.path.join("..", new_pages[index]["img"])
-                with open(os.path.join(self.input, new_pages[index]["href"]), 'w', encoding="utf-8") as f:
-                    f.write(str(html))
+                y = page["i-path"].rfind(".")
+                new_page = {"i-path": page["i-path"][:y]+"l"+page["i-path"][y:], "i-id": page["i-id"]+"l", "width": int(height/2), "height": width}
+                new_pages.insert(index, new_page)
+                imgl.save(os.path.join(self.input, new_page["i-path"]))
                 # Insert right page
-                new_pages.insert(index, {"href": href[:x]+"a"+href[x:], "ref": ref+"a", "img": img[:y]+"a"+img[y:], "id": id+"a", "width": height/2, "height": width})
-                imga.save(os.path.join(self.input, new_pages[index]["img"]))
-                html.find("img")["src"] = os.path.join("..", new_pages[index]["img"])
-                with open(os.path.join(self.input, new_pages[index]["href"]), 'w', encoding="utf-8") as f:
-                    f.write(str(html))
+                y = page["i-path"].rfind(".")
+                new_page = {"i-path": page["i-path"][:y]+"r"+page["i-path"][y:], "i-id": page["i-id"]+"r", "width": int(height/2), "height": width}
+                new_pages.insert(index, new_page)
+                imgr.save(os.path.join(self.input, new_page["i-path"]))
 
         logging.debug("New pages: {}".format(new_pages))
         self.pages = new_pages.copy()
-        for h in remove_href: os.remove(h)
-        for i in remove_img: os.remove(i)
         return
 
     def generate_new_structure(self, first_page=3):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
         # Copy all other unchanged stuffs
-        if not os.path.exists(os.path.join(self.output, "css")):
-        copytree(os.path.join(self.input, "css"), os.path.join(self.output, "css"))
-        if not os.path.exists(os.path.join(self.output, "html")):
-        copytree(os.path.join(self.input, "html"), os.path.join(self.output, "html"))
-        if not os.path.exists(os.path.join(self.output, "META-INF")):
-        copytree(os.path.join(self.input, "META-INF"), os.path.join(self.output, "META-INF"))
-        if not os.path.exists(os.path.join(self.output, "misc")):
-        copytree(os.path.join(self.input, "misc"), os.path.join(self.output, "misc"))
-        if not os.path.exists(os.path.join(self.output, "xml")):
-        os.makedirs(os.path.join(self.output, "xml"))
-        if not os.path.exists(os.path.join(self.output, "mimetype")):
-        copyfile(os.path.join(self.input, "mimetype"), os.path.join(self.output, "mimetype"))
-        if not os.path.exists(os.path.join(self.output, self.createby["img"])):
-            copyfile(os.path.join(self.input, self.createby["img"]), os.path.join(self.output, self.createby["img"]))
-        if not os.path.exists(os.path.join(self.output, self.css)):
-        copyfile(os.path.join(self.input, self.css), os.path.join(self.output, self.css))
-        if not os.path.exists(os.path.join(self.output, self.font01)):
-        copyfile(os.path.join(self.input, self.font01), os.path.join(self.output, self.font01))
+        copyfile("./Res/mimetype", os.path.join(self.output, "mimetype"))
+        copytree("./Res/style", os.path.join(self.output, "item", "style"))
+        if not os.path.exists(os.path.join(self.output, "item", "image")):
+            os.makedirs(os.path.join(self.output, "item", "image"))
+        os.makedirs(os.path.join(self.output, "item", "xhtml"))
+        os.makedirs(os.path.join(self.output, "META-INF"))
+        copyfile("./Res/container.xml", os.path.join(self.output, "META-INF", "container.xml"))
 
-        # opf
-        with open(os.path.join(self.input, "tpl.opf"), 'r', encoding="utf-8") as opf:
-            self.opf_template = BeautifulSoup(opf, 'html.parser')
+        # Rename files
+        for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
+            if page == self.cover:
+                _i_id = "cover"
+            elif page == self.colophon:
+                _i_id = "i-colophon"
+            else:
+                _i_id = "i-{:03d}".format(i)
 
-            identifier = self.opf_template.find('dc:identifier')
-            identifier.string = self.identifier
-            title = self.opf_template.find('dc:title')
-            title.string = self.title
-            language = self.opf_template.find('dc:language')
-            language.string = self.language
-            creator = self.opf_template.find('dc:creator')
-            creator.string = self.creator
-            publisher = self.opf_template.find('dc:publisher')
-            publisher.string = self.publisher
-            date = self.opf_template.find('dc:date')
-            date.string = self.date
-            rights = self.opf_template.find('dc:rights')
-            rights.string = self.rights
+            copyfile(os.path.join(self.input, page["i-path"]), os.path.join(self.output, "item/image/{}.jpg".format(_i_id)))
+            page["i-id"] = _i_id
+            page["i-path"] = "../image/{}.jpg".format(_i_id)
             
-            new_tag = self.opf_template.new_tag("meta", property="rendition:layout")
-            new_tag.string = "pre-paginated"
-            self.opf_template.metadata.append(new_tag)
-            new_tag = self.opf_template.new_tag("meta", property="rendition:spread")
-            new_tag.string = "landscape"
-            self.opf_template.metadata.append(new_tag)
-            new_tag = self.opf_template.new_tag("meta", property="rendition:orientation")
-            new_tag.string = "auto"
-            self.opf_template.metadata.append(new_tag)
+        # opf
+        with open("./Res/standard.opf", 'r', encoding="utf-8") as opf_file:
+            html = BeautifulSoup(opf_file, 'html.parser')
 
-            item_ncx = self.opf_template.find("item", id="ncx")
-            item_ncx["href"] = "xml/volmoe.ncx"
-            item_navdoc = self.opf_template.new_tag("item", href="html/navigation-documents.xhtml", attrs={"id": "toc", "media-type": "application/xhtml+xml"}, properties="nav")
-            item_ncx.insert_before(item_navdoc)
+            html.find('dc:identifier').string = "urn:uuid:"+self.identifier
+            html.find('dc:title').string = self.title
+            html.find('dc:language').string = self.language
+            html.find('dc:creator').string = self.creator
+            html.find("meta", attrs={'property':'role', 'refines':'#creator01'}).string = "aut"
+            html.find('dc:publisher').string = self.publisher
+            html.find("meta", attrs={'property':'dcterms:modified'}).string = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 
-            item_page = self.opf_template.find("item", id="Page_{PAGE_ID}")
-            item_page.decompose()
-            item_img = self.opf_template.find("item", id="img_{IMG_ID}")
-            item_img.decompose()
-            itemref_page = self.opf_template.find("itemref", idref="Page_{PAGE_ID}")
-            itemref_page.decompose()
+            html.find("meta", attrs={'property':'rendition:layout'}).string = "pre-paginated"
+            html.find("meta", attrs={'property':'rendition:spread'}).string = "landscape"
+            html.find("meta", attrs={'property':'rendition:orientation'}).string = "auto"
 
-            item_page_createby = self.opf_template.find("item", id="Page_createby")
-            item_page_cover = self.opf_template.find("item", id="Page_cover")
-            item_page_cover["href"] = "html/cover.jpg.html"
+            html.find("meta", attrs={'property':'ebpaj:guide-version'}).string = "1.1.2"
+            html.find("meta", attrs={'property':'kadokawa:version'}).string = "1.0.1"
+            html.find("meta", attrs={'property':'ibooks:specified-fonts'}).string = "true"
+            html.find("meta", attrs={'property':'ibooks:binding'}).string = "false"
+            html.find("meta", attrs={'name':'original-resolution'})["content"] = "{}x{}".format(self.cover["width"], self.cover["height"])
+            html.find("meta", attrs={'property':'fixed-layout-jp:viewport'}).string = "width={}, height={}".format(self.cover["width"], self.cover["height"])
 
-            item_cover_img = self.opf_template.find("item", id="cover_img")
-            item_cover_img["href"] = self.cover["img"]
-            item_cover_img["media-type"] = "image/jpeg" if self.cover["img"].endswith("jpg") else "image/png"
-            item_img_createby = self.opf_template.find("item", id="img_createby")
+            _image = html.find("item", id="cover")
+            _xhtml = html.find("item", id="p-cover")
+            _spine = html.find("itemref", idref="p-cover")
+            for i, page in enumerate(self.pages + [self.colophon]):
 
-            self.opf_template.spine["page-progression-direction"] = "rtl"
-            itemref_cover = self.opf_template.find("itemref", idref="Page_cover")
-            itemref_cover["properties"] = "rendition:page-spread-center"
-            itemref_createby = self.opf_template.find("itemref", idref="Page_createby")
-            ref_cover = self.opf_template.find("reference", type="cover")
-            ref_cover["href"] = self.cover["img"]
+                _i_path = page["i-path"].replace("../", "")
+                new_image = html.new_tag("item", id=page["i-id"], href=_i_path, attrs={"media-type": "image/jpeg" if _i_path.endswith("jpg") else "image/png"})
+                _image.insert_after(new_image)
+                _image = new_image
 
-            for i in self.pages:
-                index = self.pages.index(i)
-                new_page = self.opf_template.new_tag("item", id=i["ref"], href=i["href"], attrs={"media-type": "application/xhtml+xml"})
-                item_page_createby.insert_before(new_page)
-                new_img = self.opf_template.new_tag("item", id=i["id"], href=i["img"], attrs={"media-type": "image/jpeg" if i["img"].endswith("jpg") else "image/png"})
-                item_img_createby.insert_before(new_img)
-                new_ref = self.opf_template.new_tag("itemref", idref=i["ref"])
-                if index < first_page - 1:
-                    new_ref["properties"] = "rendition:page-spread-center"
+                _p_id = page["i-id"].replace("i-", "p-")
+                _p_path = "xhtml/{}.xhtml".format(_p_id)
+                new_xhtml = html.new_tag("item", id=_p_id, href=_p_path, fallback=page["i-id"], attrs={"media-type": "application/xhtml+xml", "properties":"svg"})
+                _xhtml.insert_after(new_xhtml)
+                _xhtml = new_xhtml
+
+                new_spine = html.new_tag("itemref", idref=_p_id, linear="yes")
+                if i < first_page - 1:
+                    new_spine["properties"] = "rendition:page-spread-center"
                 else:
-                    new_ref["properties"] = "page-spread-left" if ( index + 1) % 2 else "page-spread-right"
-                itemref_createby.insert_before(new_ref)
+                    new_spine["properties"] = "page-spread-left" if ( i + 1) % 2 else "page-spread-right"
+                _spine.insert_after(new_spine)
+                _spine = new_spine
       
-        with open(os.path.join(self.output, "volmoe.opf"), 'w', encoding="utf-8") as f:
-            # self.opf_template can't use prettify() or rotation won't work on KOBO.
-            f.write(str(self.opf_template))
+            with open(os.path.join(self.output, "item", "standard.opf"), 'w', encoding="utf-8") as f:
+                # opf can't use prettify() or rotation won't work on KOBO.
+                f.write(str(html))
 
         # ncx
-        with open(os.path.join(self.input, "xml", "tpl.ncx"), 'r', encoding="utf-8") as ncx:
-            self.ncx_template = BeautifulSoup(ncx, 'html.parser')
+        with open("./Res/toc.ncx", 'r', encoding="utf-8") as ncx_file:
+            html = BeautifulSoup(ncx_file, 'html.parser')
 
-            identifier = self.ncx_template.find("meta", content="{BOOK_VOL_ID}")
-            identifier["content"] = self.identifier
-            for e in self.ncx_template.find_all("meta", content="{TOTAL_PAGE_COUNT}"):
-                e["content"] = len(self.pages)
-            for d in self.ncx_template.find_all("text"):
-                if d.parent.name == "doctitle":
-                    d.string = self.title
-                elif d.parent.name == "docauthor":
-                    d.string = self.creator
-                elif d.parent.parent and d.parent.parent["id"] == "Page_createby":
-                    d.string = self.build_date
-                    d.parent.parent["playorder"] = len(self.pages) + 2 # Add 2 because cover and createby also count.
-
-            navpt_page = self.ncx_template.find("navpoint", id="Page_{PAGE_ID}")
-            navpt_page.decompose()
-            navpt_createby = self.ncx_template.find("navpoint", id="Page_createby")
+            html.ncx.head.find("meta", attrs={'name':'dtb:uid'})["content"] = self.identifier
+            html.ncx.head.find("meta", attrs={'name':'dtb:depth'})["content"] = 1
+            html.ncx.head.find("meta", attrs={'name':'dtb:totalPageCount'})["content"] = len(self.pages)
+            html.ncx.head.find("meta", attrs={'name':'dtb:maxPageNumber'})["content"] = len(self.pages)
 
             if self.toc_changed:
                 print("self toc ", self.toc)
@@ -385,17 +329,17 @@ class eBook(object):
                     i = self.pages[page-1]
                     print("Ch {} page {}, item {}".format(chapter, page, i))
 
-                    new_page = self.ncx_template.new_tag("navPoint", id=i["ref"], playorder=str(page))
-                    label = self.ncx_template.new_tag("navLabel")
-                    text = self.ncx_template.new_tag("text")
+                    new_page = ncx.new_tag("navPoint", id=i["p-id"], playorder=str(page))
+                    label = ncx.new_tag("navLabel")
+                    text = ncx.new_tag("text")
                     text.string = chapter
                     label.append(text)
                     new_page.append(label)
-                    content = self.ncx_template.new_tag("content", src="../"+i["href"])
+                    content = ncx.new_tag("content", src="../"+i["p-path"])
                     new_page.append(content)
                     navpt_createby.insert_before(new_page)
             else:
-                for i, page in enumerate([self.cover] + self.pages):
+                for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
                     if i == 0:
                         title = "封面"
                     elif i < first_page:
@@ -405,37 +349,56 @@ class eBook(object):
                     else:
                         title = "第 " + str(i - first_page + 1) + " 頁"
                     
-                    new_page = self.ncx_template.new_tag("navPoint", id=page["ref"], playorder=str(i+1))
-                    label = self.ncx_template.new_tag("navLabel")
-                    text = self.ncx_template.new_tag("text")
+                    if page == self.cover:
+                        _p_id = "p-cover"
+                    elif page == self.colophon:
+                        _p_id = "p-colophon"
+                    else:
+                        _p_id = "p-{:03d}".format(i)
+
+                    navPoint = html.new_tag("navPoint", id="xhtml-"+_p_id, playorder=i+1)
+                    label = html.new_tag("navLabel")
+                    text = html.new_tag("text")
                     text.string = title
                     label.append(text)
-                    new_page.append(label)
-                    content = self.ncx_template.new_tag("content", src="../"+page["href"])
-                    new_page.append(content)
-                    navpt_createby.insert_before(new_page)
-        #print("after:", self.ncx_template)
-        with open(os.path.join(self.output, "xml", "volmoe.ncx"), 'w', encoding="utf-8") as f:
-            f.write(self.ncx_template.prettify())
+                    navPoint.append(label)
+                    content = html.new_tag("content", src="xhtml/{}.xhtml".format(_p_id))
+                    navPoint.append(content)
+                    html.ncx.navmap.append(navPoint)
+
+            with open(os.path.join(self.output, "item", "toc.ncx"), 'w', encoding="utf-8") as f:
+                f.write(html.prettify())
         
-        # html
-        for page in [self.cover] + self.pages:
-            image = Image.open(os.path.join(self.input, page["img"]))
-            width, height = image.size
-            # Open page to insert viewport
-            with open(os.path.join(self.output, page["href"]), 'r', encoding="utf-8") as tpl:
-                html = BeautifulSoup(tpl, 'html.parser')
+        # html pages
+        for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
+            with open("./Res/page.xhtml", 'r', encoding="utf-8") as page_file:
+                html = BeautifulSoup(page_file, 'html.parser')
 
-                viewport = "width={}, height={}".format(width, height)
-                meta_viewport = html.new_tag("meta", content=viewport, attrs={'name':'viewport'})
-                html.head.append(meta_viewport)
+                html.head.title.string = self.title
+                html.head.find("meta", attrs={'name':'Adept.expected.resource'})["content"] = "urn:uuid:" + self.identifier
+                html.head.find("meta", attrs={'name':'viewport'})["content"] = "width={}, height={}".format(page["width"], page["height"])
 
-                with open(os.path.join(self.output, page["href"]), 'w', encoding="utf-8") as f:
+                if page == self.cover:
+                    html.body["epub:type"] = "cover"
+                    _file = "item/xhtml/p-cover.xhtml"
+                elif page == self.colophon:
+                    _file = "item/xhtml/p-colophon.xhtml"
+                else:
+                    _file = "item/xhtml/p-{:03d}.xhtml".format(i)
+        
+                html.body.div.svg["viewbox"] = "0 0 {} {}".format(page["width"], page["height"])
+
+                image = html.body.div.svg.find("image")
+                image["width"] = page["width"]
+                image["height"] = page["height"]
+                image["xlink:href"] = page["i-path"]
+
+                with open(os.path.join(self.output, _file), 'w', encoding="utf-8") as f:
                     f.write(str(html))            
 
         # navigation-documents
-        with open("./Res/navigation-documents.html", 'r', encoding="utf-8") as nd:
-            html = BeautifulSoup(nd, 'html.parser')
+        with open("./Res/navigation-documents.html", 'r', encoding="utf-8") as nd_file:
+            html = BeautifulSoup(nd_file, 'html.parser')
 
             toc = html.find("nav", id="toc")
             guide = html.find("nav", id="guide")
@@ -450,21 +413,27 @@ class eBook(object):
                 else:
                     title = "第 " + str(i - first_page + 1) + " 頁"                
 
+                if page == self.cover:
+                    _p_id = "p-cover"
+                elif page == self.colophon:
+                    _p_id = "p-colophon"
+                else:
+                    _p_id = "p-{:03d}".format(i)   
+
                 toc_li = html.new_tag("li")
-                toc_a = html.new_tag("a", href=page["href"].replace("html/", ""))
+                toc_a = html.new_tag("a", href="xhtml/{}.xhtml".format(_p_id))
                 toc_a.string = title
                 toc_li.append(toc_a)
                 toc.ol.append(toc_li)
 
             for guide_li in guide.find_all("li"):
                 if guide_li.a.string == "表紙":
-                    guide_li.a["href"] = self.cover["href"].replace("html/", "")
+                    guide_li.a["href"] = "xhtml/p-cover.xhtml"
                 elif guide_li.a.string == "目次":
-                    guide_li.a["href"] = self.pages[0]["href"].replace("html/", "")
+                    guide_li.a["href"] = "xhtml/p-{:03d}.xhtml".format(first_page - 1)
                 elif guide_li.a.string == "本編":
-                    guide_li.a["href"] = self.pages[first_page - 1]["href"].replace("html/", "")
-
-            with open(os.path.join(self.output, "html", "navigation-documents.xhtml"), 'w', encoding="utf-8") as f:
+                    guide_li.a["href"] = "xhtml/p-001.xhtml"
+            with open(os.path.join(self.output, "item", "navigation-documents.xhtml"), 'w', encoding="utf-8") as f:
                 f.write(html.prettify())
 
     def repack(self):
@@ -474,15 +443,12 @@ class eBook(object):
             logging.debug("Created ePub begin.")
             # Add multiple files to the zip
             for folderName, subfolders, filenames in os.walk(self.output):
-                #print("folder:", folderName)
-                basename = os.path.basename(folderName)
-                if basename == self.name:
-                    basename = ''
                 for f in filenames:
-                    #print("file: ", os.path.join(folderName, f) + ', ' + os.path.join(basename, f))
-                    zipObj.write(os.path.join(folderName, f), os.path.join(basename, f))
+                    # Get the relative path
+                    logging.debug("Write file {} as {}".format(os.path.join(folderName, f), os.path.relpath(os.path.join(folderName, f), self.output)))
+                    zipObj.write(os.path.join(folderName, f), os.path.relpath(os.path.join(folderName, f), self.output))
 
-            logging.debug("Created ePub at " + self.output)
+            logging.debug("Created ePub at " + os.path.join(self.root, self.name))
         return
 
 
@@ -498,17 +464,17 @@ class eBook(object):
             return ""
 
     def get_cover_page(self, format="Path"):
-        return os.path.join(self.input, self.cover["img"])
+        return os.path.join(self.input, self.cover["i-path"])
 
     def get_page(self, page_num, format="Path"):
         """ Return page image. page_num starts from 1. """
         if format == "PIL":
-            return Image.open(os.path.join(self.input, self.pages[page_num-1]["img"]))
+            return Image.open(os.path.join(self.input, self.pages[page_num-1]["i-path"]))
         elif format == "FileRead":
-            file = open(os.path.join(self.input, self.pages[page_num-1]["img"]), "rb")
+            file = open(os.path.join(self.input, self.pages[page_num-1]["i-path"]), "rb")
             return file.read()
         else:
-            return os.path.join(self.input, self.pages[page_num-1]["img"])
+            return os.path.join(self.input, self.pages[page_num-1]["i-path"])
 
     def get_enhance_page(self, page_num, contrast) -> Image:
         image = self.get_page(page_num, format="PIL")

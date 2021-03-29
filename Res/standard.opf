@@ -1,0 +1,70 @@
+<package xmlns="http://www.idpf.org/2007/opf" prefix="rendition: http://www.idpf.org/vocab/rendition/#          ebpaj: http://www.ebpaj.jp/          fixed-layout-jp: http://www.digital-comic.jp/          kadokawa: http://www.kadokawa.co.jp/          access: http://www.access-company.com/2012/layout#          ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/" unique-identifier="bw-ecode" version="3.0" xml:lang="ja">
+
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+
+<!-- 作品名 -->
+<dc:title id="title01"></dc:title>
+
+<!-- 著者名 -->
+<dc:creator id="creator01"></dc:creator>
+<meta property="role" refines="#creator01" scheme="marc:relators"></meta>
+
+<!-- 出版社名 -->
+<dc:publisher id="publisher"></dc:publisher>
+
+<!-- 言語 -->
+<dc:language></dc:language>
+
+<!-- ファイルid -->
+<!-- 更新日 --><meta property="dcterms:modified"></meta>
+
+<!-- Fixed-Layout Documents指定 -->
+<meta property="rendition:layout"></meta>
+<meta property="rendition:spread"></meta>
+<meta property="rendition:orientation"></meta>
+
+<!-- etc. -->
+<meta property="ebpaj:guide-version"></meta>
+<meta property="kadokawa:version"></meta>
+<meta property="ibooks:specified-fonts"></meta>
+<meta property="ibooks:binding"></meta>
+<meta content="comic" name="book-type"/>
+<meta content="" name="original-resolution"/>
+<meta content="none" name="orientation-lock"/>
+<meta content="true" name="fixed-layout"/>
+<meta content="horizontal-rl" name="primary-writing-mode"/>
+
+<!-- 基準サイズ -->
+<meta property="fixed-layout-jp:viewport"></meta>
+
+<dc:identifier id="bw-ecode"></dc:identifier></metadata>
+
+<manifest>
+
+<!-- navigation -->
+<item href="navigation-documents.xhtml" id="toc" media-type="application/xhtml+xml" properties="nav"/>
+<item href="toc.ncx" id="ncx" media-type="application/x-dtbncx+xml"/>
+
+<!-- style -->
+<item href="style/fixed-layout-jp.css" id="fixed-layout-jp" media-type="text/css"/>
+<item href="style/book-style.css" id="book-style" media-type="text/css"/>
+<item href="style/style-reset.css" id="style-reset" media-type="text/css"/>
+<item href="style/style-standard.css" id="style-standard" media-type="text/css"/>
+<item href="style/style-advance.css" id="style-advance" media-type="text/css"/>
+<item href="style/style-check.css" id="style-check" media-type="text/css"/>
+
+<!-- image -->
+<item href="image/cover.jpg" id="cover" media-type="image/jpeg" properties="cover-image"/>
+
+<!-- xhtml -->
+<item fallback="cover" href="xhtml/p-cover.xhtml" id="p-cover" media-type="application/xhtml+xml" properties="svg"/>
+
+</manifest>
+
+<spine page-progression-direction="rtl" toc="ncx">
+
+<itemref idref="p-cover" linear="yes" properties="rendition:page-spread-center"/>
+
+</spine>
+
+</package>

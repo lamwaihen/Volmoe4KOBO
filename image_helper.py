@@ -213,7 +213,8 @@ def rotateImage(image: Image, angle: float) -> Image:
 
 def getImageSize(image_path: str):
     """ Open image from given path and return its width and height. """
-    with cv2.imdecode(numpy.fromfile(image_path, dtype=numpy.uint8), cv2.IMREAD_UNCHANGED) as im:
+    im = cv2.imdecode(numpy.fromfile(image_path, dtype=numpy.uint8), cv2.IMREAD_UNCHANGED)
+    if im is not None:
         height, width = im.shape[0], im.shape[1]
         return width, height
 
