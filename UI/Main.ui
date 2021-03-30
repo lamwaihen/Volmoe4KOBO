@@ -819,7 +819,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QProgressBar" name="progressBar">
+         <widget class="QProgressBar" name="progressBarSave">
           <property name="value">
            <number>24</number>
           </property>
@@ -842,6 +842,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="buttonProcessNext">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>下一步</string>
             </property>

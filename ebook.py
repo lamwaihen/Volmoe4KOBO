@@ -167,7 +167,32 @@ class eBook(object):
             logging.warning("Exception on {}".format(self.path), exc_info=True)
         return
 
-    def image_enhance(self, contrast=32):
+    def _save(self, signal: pyqtSignal, **options):
+        """ Thread function that zip the output folder convert to ePub file. """
+        logging.info("Thread function begin!")
+        first_page = options.get("first_page")
+        contrast = options.get("contrast")
+
+        logging.debug("Thread get contrast", contrast)
+        self.image_enhance(signal, contrast, 0, 50)
+        self.generate_new_structure(signal, first_page, 50, 80)
+        self.repack(signal, 80, 100)
+
+        signal.emit(100)
+    
+    def save(self, first_page, contrast, funcCountChanged, funcCompleted):
+        """ Save folder as ePub. """
+        try:
+            # Create thread to extract ePub as zip and parse its structure.
+            self.convertThread = ProgressThread(self._save, first_page=first_page, contrast=contrast)
+            self.convertThread.progressSignal.connect(funcCountChanged)
+            self.convertThread.finished.connect(funcCompleted)
+            self.convertThread.start()
+        except:
+            logging.warning("Exception on {}".format(self.path), exc_info=True)
+        return
+
+    def image_enhance(self, signal: pyqtSignal, contrast, range_min, range_max):
         """ https://stackoverflow.com/questions/42045362/change-contrast-of-image-in-pil """
         
         # Handle the cover page
@@ -177,7 +202,7 @@ class eBook(object):
         image.save(os.path.join(self.input, self.cover["i-path"]))
 
         # Then all other pages
-        for page in self.pages:
+        for i, page in enumerate(self.pages):
             image = Image.open(os.path.join(self.input, page["i-path"]))
 
             # Contrast
@@ -196,8 +221,9 @@ class eBook(object):
 
             # Save to output folder
             new_image.save(os.path.join(self.input, page["i-path"]), quality=80)
+            signal.emit(self.__get_progess_percentage(i, len(self.pages), range_min, range_max))
 
-        return
+        signal.emit(range_max)
     
     def layout_fix(self, first_page=3):
         """ Split, rotate and even straighten images, this may alter the page order of the book. """
@@ -236,8 +262,10 @@ class eBook(object):
         self.pages = new_pages.copy()
         return
 
-    def generate_new_structure(self, first_page=3):
+    def generate_new_structure(self, signal: pyqtSignal, first_page, range_min, range_max):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
+        range_portion = (range_max - range_min) / 6
+
         # Copy all other unchanged stuffs
         copyfile("./Res/mimetype", os.path.join(self.output, "mimetype"))
         copytree("./Res/style", os.path.join(self.output, "item", "style"))
@@ -246,7 +274,9 @@ class eBook(object):
         os.makedirs(os.path.join(self.output, "item", "xhtml"))
         os.makedirs(os.path.join(self.output, "META-INF"))
         copyfile("./Res/container.xml", os.path.join(self.output, "META-INF", "container.xml"))
+        signal.emit(range_min + range_portion)
 
+        page_count = len([self.cover] + self.pages + [self.colophon])
         # Rename files
         for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
             if page == self.cover:
@@ -259,6 +289,7 @@ class eBook(object):
             copyfile(os.path.join(self.input, page["i-path"]), os.path.join(self.output, "item/image/{}.jpg".format(_i_id)))
             page["i-id"] = _i_id
             page["i-path"] = "../image/{}.jpg".format(_i_id)
+            signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion, range_min + range_portion*2))
             
         # opf
         with open("./Res/standard.opf", 'r', encoding="utf-8") as opf_file:
@@ -306,6 +337,7 @@ class eBook(object):
                     new_spine["properties"] = "page-spread-left" if ( i + 1) % 2 else "page-spread-right"
                 _spine.insert_after(new_spine)
                 _spine = new_spine
+                signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*2, range_min + range_portion*3))
       
             with open(os.path.join(self.output, "item", "standard.opf"), 'w', encoding="utf-8") as f:
                 # opf can't use prettify() or rotation won't work on KOBO.
@@ -365,6 +397,7 @@ class eBook(object):
                     content = html.new_tag("content", src="xhtml/{}.xhtml".format(_p_id))
                     navPoint.append(content)
                     html.ncx.navmap.append(navPoint)
+                    signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion*3, range_min + range_portion*4))
 
             with open(os.path.join(self.output, "item", "toc.ncx"), 'w', encoding="utf-8") as f:
                 f.write(html.prettify())
@@ -392,6 +425,7 @@ class eBook(object):
                 image["width"] = page["width"]
                 image["height"] = page["height"]
                 image["xlink:href"] = page["i-path"]
+                signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion*4, range_min + range_portion*5))
 
                 with open(os.path.join(self.output, _file), 'w', encoding="utf-8") as f:
                     f.write(str(html))            
@@ -425,6 +459,7 @@ class eBook(object):
                 toc_a.string = title
                 toc_li.append(toc_a)
                 toc.ol.append(toc_li)
+                signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*5, range_max))
 
             for guide_li in guide.find_all("li"):
                 if guide_li.a.string == "表紙":
@@ -436,20 +471,28 @@ class eBook(object):
             with open(os.path.join(self.output, "item", "navigation-documents.xhtml"), 'w', encoding="utf-8") as f:
                 f.write(html.prettify())
 
-    def repack(self):
+        signal.emit(range_max)
+
+    def repack(self, signal: pyqtSignal, range_min, range_max):
         """ Pack everything back to an ePub file. """
         # create a ZipFile object
         with ZipFile(os.path.join(self.root, self.name), 'w', zipfile.ZIP_STORED) as zipObj:
             logging.debug("Created ePub begin.")
+            count = sum([len(files) for r, d, files in os.walk(self.output)])
+            logging.debug("{} files in folder", count)
+            i = 0
             # Add multiple files to the zip
             for folderName, subfolders, filenames in os.walk(self.output):
                 for f in filenames:
                     # Get the relative path
                     logging.debug("Write file {} as {}".format(os.path.join(folderName, f), os.path.relpath(os.path.join(folderName, f), self.output)))
                     zipObj.write(os.path.join(folderName, f), os.path.relpath(os.path.join(folderName, f), self.output))
+                    signal.emit(self.__get_progess_percentage(i, count, range_min, range_max))
+                    i = i+1
 
             logging.debug("Created ePub at " + os.path.join(self.root, self.name))
-        return
+        
+        signal.emit(range_max)
 
 
     def get_info(self, type: str) -> str:

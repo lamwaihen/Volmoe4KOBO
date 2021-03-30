@@ -1,7 +1,6 @@
 import io
 import os
 import sys
-import threading
 
 from shutil import rmtree
 from tempfile import gettempdir
@@ -100,9 +99,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.scrollTOCPage.setRange(1, size)
                 self.ui.scrollTOCPage.setValue(4)
         elif currentPage == 'pageProcess':
-            for book in self.books:
-                t = threading.Thread(target=fileProcessing, args=(book, self.ui.scrollFirstPage.value(), self.ui.sliderContrast.value()))
-                t.start()
+            self.ui.progressBarSave.hide()
+            self.book.save(self.ui.scrollFirstPage.value(), self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
         elif currentPage == 'pageUpload':
             for book in self.books:
                 print("hello")
@@ -123,6 +121,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.imageCover.setPixmap(QtGui.QPixmap(self.book.get_cover_page()))
 
         self.ui.buttonBeginNext.setEnabled(True)
+
+    def saveProgressChanged(self, value):
+        self.ui.progressBarSave.show()
+        self.ui.progressBarSave.setValue(value)
+
+    def saveCompleted(self):
+        self.ui.buttonProcessNext.setEnabled(True)
 
     def firstPagePreviewChanged(self):
         for book in self.books:
@@ -151,11 +156,6 @@ class MainWindow(QtWidgets.QMainWindow):
             image = book.get_page(i)
             self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
             self.ui.labelTOCPage.setText(str(i))
-
-def fileProcessing(book: eBook, firstPage: int, contrast: int):
-    book.image_enhance(contrast)
-    book.generate_new_structure(firstPage)
-    book.repack()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
