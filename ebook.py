@@ -205,6 +205,17 @@ class eBook(object):
         for i, page in enumerate(self.pages):
             image = Image.open(os.path.join(self.input, page["i-path"]))
 
+            # Convert png to jpg
+            if not image.mode == "RGB":
+                logging.debug("Convert {} to jpg.".format(page["i-path"]))
+                # update name
+                y = page["i-path"].rfind(".")
+                name = page["i-path"][:y]+".jpg"
+                image.convert('RGB').save(os.path.join(self.input, name),"JPEG")
+                page["i-path"] = name
+                # open the new jpg
+                image = Image.open(os.path.join(self.input, page["i-path"]))
+
             # Contrast
             new_image = self.__contrast_image(image, contrast)
 
@@ -212,7 +223,6 @@ class eBook(object):
 
             # TODO: Straighten
             new_image = self.__deskew_image(new_image)
-            if not image.format == "PNG":
             new_image = self.__sharpen_image(new_image, 1)
 
             # TODO: Dewrap
@@ -334,7 +344,7 @@ class eBook(object):
                 if i < first_page - 1:
                     new_spine["properties"] = "rendition:page-spread-center"
                 else:
-                    new_spine["properties"] = "page-spread-left" if ( i + 1) % 2 else "page-spread-right"
+                    new_spine["properties"] = "page-spread-right" if (first_page - 1 - i) % 2 else "page-spread-left"
                 _spine.insert_after(new_spine)
                 _spine = new_spine
                 signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*2, range_min + range_portion*3))
