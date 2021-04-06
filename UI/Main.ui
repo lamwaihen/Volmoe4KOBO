@@ -366,7 +366,7 @@
        </layout>
       </widget>
       <widget class="QWidget" name="pageFirstPage">
-       <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,1,0">
+       <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0,1,0">
         <property name="leftMargin">
          <number>0</number>
         </property>
@@ -388,9 +388,48 @@
            </sizepolicy>
           </property>
           <property name="text">
-           <string>選取書本打開後的第一頁。</string>
+           <string>選取書本打開後的第一頁。如果從缺，請選擇第一張頁面並設定其頁碼。</string>
           </property>
          </widget>
+        </item>
+        <item>
+         <layout class="QFormLayout" name="formLayout_2">
+          <property name="topMargin">
+           <number>5</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_14">
+            <property name="text">
+             <string>頁碼：</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QSpinBox" name="spinFirstPage">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="readOnly">
+             <bool>false</bool>
+            </property>
+            <property name="buttonSymbols">
+             <enum>QAbstractSpinBox::UpDownArrows</enum>
+            </property>
+            <property name="suffix">
+             <string>頁</string>
+            </property>
+            <property name="prefix">
+             <string>第</string>
+            </property>
+            <property name="value">
+             <number>1</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <layout class="QGridLayout" name="gridLayout_2" rowstretch="1,0" columnstretch="1,1">
@@ -434,7 +473,7 @@
             <item>
              <widget class="QLabel" name="label_12">
               <property name="text">
-               <string>頁碼：</string>
+               <string>選取頁面：</string>
               </property>
              </widget>
             </item>
@@ -618,7 +657,7 @@
             <item>
              <widget class="QLabel" name="label_13">
               <property name="text">
-               <string>頁數：</string>
+               <string>選取頁面：</string>
               </property>
              </widget>
             </item>
@@ -676,7 +715,7 @@
        </layout>
       </widget>
       <widget class="QWidget" name="pageTOC">
-       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,1,0">
+       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,1,0">
         <property name="leftMargin">
          <number>0</number>
         </property>
@@ -703,10 +742,45 @@
          </widget>
         </item>
         <item>
-         <layout class="QGridLayout" name="gridLayout_4" rowstretch="1,0" columnstretch="1,1">
-          <property name="spacing">
-           <number>6</number>
+         <widget class="QCheckBox" name="checkBoxHasTOC">
+          <property name="text">
+           <string>有目錄頁</string>
           </property>
+          <property name="shortcut">
+           <string>Ctrl+S</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QGridLayout" name="gridLayout_4">
+          <item row="2" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="0,0,1">
+            <item>
+             <widget class="QLabel" name="labelTOCPage">
+              <property name="text">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>頁碼：</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QScrollBar" name="scrollTOCPage">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
           <item row="0" column="0">
            <widget class="ImageWidget" name="imageTOCPage">
             <property name="sizePolicy">
@@ -732,33 +806,123 @@
             </property>
            </widget>
           </item>
-          <item row="1" column="0">
-           <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="0,0,1">
+          <item row="0" column="2">
+           <layout class="QHBoxLayout" name="horizontalLayout_9">
             <item>
-             <widget class="QLabel" name="label_3">
+             <layout class="QVBoxLayout" name="verticalLayout_7">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QPushButton" name="delTOCButton_0">
+                <property name="maximumSize">
+                 <size>
+                  <width>21</width>
+                  <height>21</height>
+                 </size>
+                </property>
               <property name="text">
-               <string>頁碼：</string>
+                 <string>X</string>
+                </property>
+                <property name="icon">
+                 <iconset theme="delete"/>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QLabel" name="labelTOCPage">
+               <widget class="QPushButton" name="addTOCButton_1">
+                <property name="maximumSize">
+                 <size>
+                  <width>21</width>
+                  <height>21</height>
+                 </size>
+                </property>
               <property name="text">
-               <string/>
+                 <string>+</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QScrollBar" name="scrollTOCPage">
+               <spacer name="verticalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_8">
+              <property name="spacing">
+               <number>6</number>
+              </property>
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLineEdit" name="editTOCContent_0"/>
+              </item>
+              <item>
+               <spacer name="verticalSpacer_2">
               <property name="orientation">
-               <enum>Qt::Horizontal</enum>
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QVBoxLayout" name="verticalLayout_9">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLineEdit" name="editTOCPage_0">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>40</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="maxLength">
+                 <number>3</number>
               </property>
              </widget>
             </item>
+              <item>
+               <spacer name="verticalSpacer_3">
+                <property name="orientation">
+                 <enum>Qt::Vertical</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>20</width>
+                  <height>40</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
            </layout>
           </item>
-          <item row="0" column="1">
-           <widget class="QPlainTextEdit" name="editTOC"/>
+           </layout>
           </item>
          </layout>
         </item>

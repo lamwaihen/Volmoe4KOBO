@@ -2,7 +2,7 @@ import io
 import os
 import sys
 
-from shutil import rmtree
+from shutil import copyfile, rmtree
 from tempfile import gettempdir
 
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -16,6 +16,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.resetData()
 
         # Palette
         paletteBase = QtGui.QPalette()
@@ -38,6 +39,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # pageFirstPage
         self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
+        self.ui.spinFirstPage.valueChanged.connect(self.firstPageSpinChanged)
         self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)        
 
         # pageImageEnhance
@@ -46,6 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
 
         # pageTOC
+        self.ui.checkBoxHasTOC.stateChanged.connect(lambda:self.hasTOCChanged(self.ui.checkBoxHasTOC))
         self.ui.scrollTOCPage.valueChanged.connect(self.tocPreviewChanged)
         self.ui.buttonTOCPageNext.clicked.connect(self.nextButtonClicked)
 
@@ -53,26 +56,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.buttonProcessNext.clicked.connect(self.nextButtonClicked)
 
         self.ui.toolBox.setCurrentIndex(0)
-        self.tmp = os.path.join(gettempdir(), "ebook")
 
     def closeEvent(self, event):
         rmtree(self.tmp, ignore_errors=True)
 
     def showEvent(self, event):    
-        if not os.path.exists(self.tmp):
-            os.makedirs(self.tmp)
+        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        if not os.path.exists(work_path):
+            os.makedirs(work_path)
 
-    def openFileDialog(self):
-        path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', 'c:\\',"KOBO ePub (*.kepub.epub)")
-        _, filename = os.path.split(path[0])
-        # Copy selected file to temp folder for further process.
-        #tempFile = os.path.join(self.tmp, filename)
-        #copyfile(path[0], tempFile)
+    def resetData(self):
+        self.file = None
+        self.book = None
+        self.firstImage = 3 # Assume the 3rd image is the first page
+        self.firstPageNum = 1   # And the first page is page 1.
+        self.tocPageNum = 3 # Page number of TOC, -1 if not available.
 
         
-        self.book = eBook(path[0])
+    def openFileDialog(self):
+        load_path = settings.value("path/load", "C:\\")
+        path = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", load_path, "KOBO ePub (*.kepub.epub)")
+        # Update settings
+        load_path, self.file = os.path.split(path[0])
+        settings.setValue("path/load", load_path)
+
+        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        self.book = eBook(path[0], work_path)
         self.book.load(self.loadProgressChanged, self.loadCompleted)
-        return
 
     def nextButtonClicked(self):
         x = self.ui.toolBox.currentIndex()
@@ -83,24 +93,22 @@ class MainWindow(QtWidgets.QMainWindow):
         if currentPage == 'pageBegin':
             self.ui.progressBarLoad.hide()
         elif currentPage == 'pageFirstPage':
-            for book in self.books:
-                size = int(book.get_info("PageCount"))
-                self.ui.scrollFirstPage.setRange(1, size)
-                self.ui.scrollFirstPage.setValue(3)
+            size = int(self.book.get_info("PageCount"))
+            self.ui.scrollFirstPage.setMaximum(size)
+            self.ui.scrollFirstPage.setValue(self.firstImage)
         elif currentPage == 'pageImageEnhance':
-            for book in self.books:
-                book.layout_fix(self.ui.scrollFirstPage.value())
-                size = int(book.get_info("PageCount"))
+            self.book.layout_fix(self.ui.scrollFirstPage.value())
+            size = int(self.book.get_info("PageCount"))
                 self.ui.scrollEnhancePage.setRange(1, size)
                 self.ui.scrollEnhancePage.setValue(5)
         elif currentPage == 'pageTOC':
-            for book in self.books:
-                size = int(book.get_info("PageCount"))
-                self.ui.scrollTOCPage.setRange(1, size)
-                self.ui.scrollTOCPage.setValue(4)
+            size = int(self.book.get_info("PageCount"))
+            self.ui.scrollTOCPage.setMaximum(size)
+            self.ui.scrollTOCPage.setValue(self.tocPageNum)
+            self.ui.checkBoxHasTOC.setChecked(True if self.tocPageNum > 0 else False)
         elif currentPage == 'pageProcess':
             self.ui.progressBarSave.hide()
-            self.book.save(self.ui.scrollFirstPage.value(), self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
+            self.book.save(self.firstImage, self.firstPageNum, self.tocPageNum, self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
         elif currentPage == 'pageUpload':
             for book in self.books:
                 print("hello")
@@ -128,14 +136,27 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveCompleted(self):
         self.ui.buttonProcessNext.setEnabled(True)
+        save_path = settings.value("path/save", os.path.expanduser("~/Documents"))
+        path = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
+        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        # Move output file from work folder for to save location.        
+        os.replace(os.path.join(work_path, self.file), path[0])
+        # Update save path
+        save_path, _ = os.path.split(path[0])
+        settings.setValue("path/save", save_path)
 
     def firstPagePreviewChanged(self):
-        for book in self.books:
             i = self.ui.scrollFirstPage.value()
-            image = book.get_page(i)
+        image = self.book.get_page(i)
             pixmap = QtGui.QPixmap(image)
             self.ui.imageFirstPage.setPixmap(pixmap)
             self.ui.labelFirstPage.setText(str(i))
+        # Adjust spin value
+        self.ui.spinFirstPage.setValue(max(1, self.firstPageNum + (i - self.firstImage)))
+        self.firstImage = i
+
+    def firstPageSpinChanged(self):
+        self.firstPageNum = self.ui.spinFirstPage.value()
     
     def imageEnhancePreviewChanged(self):
         for book in self.books:
@@ -150,6 +171,9 @@ class MainWindow(QtWidgets.QMainWindow):
             newImage = book.get_enhance_page(i, c)
             self.ui.imageEnhanceRight.setPixmap(image=newImage)
 
+    def hasTOCChanged(self, checkbox):
+        self.tocPageNum = self.ui.scrollTOCPage.value() if checkbox.isChecked() else -1
+        
     def tocPreviewChanged(self):
         for book in self.books:
             i = self.ui.scrollTOCPage.value()
@@ -159,6 +183,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
+    app.setOrganizationName("lamwaihen")
+    app.setApplicationName("Manga4KOBO")
+    app.setApplicationVersion("0.1")
+
+    settings = QtCore.QSettings()
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

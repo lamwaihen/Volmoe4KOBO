@@ -6,7 +6,6 @@ FORMAT = '%(asctime)s %(levelname)s %(module)s::%(funcName)s: %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=FORMAT)
 
 from datetime import datetime
-from tempfile import gettempdir
 from shutil import copyfile, copytree, rmtree
 import zipfile
 from zipfile import ZipFile
@@ -29,18 +28,18 @@ class ProgressThread(QThread):
         self.func(self.progressSignal, **self.options)
 
 class eBook(object):
-    def __init__(self, path):
+    def __init__(self, sourcePath, workPath):
         """
             path Location of the eBook file.
         """
-        self.path = path
-        _, self.name = os.path.split(path)
+        self.source_path = sourcePath
+        _, self.name = os.path.split(self.source_path)
 
         # Use temp folder as root.
-        self.root = os.path.join(gettempdir(), "ebook")
+        self.work_path = workPath
 
-        self.input = os.path.join(self.root, 'Input', self.name)
-        self.output = os.path.join(self.root, 'Output', self.name) 
+        self.input = os.path.join(self.work_path, 'Input', self.name)
+        self.output = os.path.join(self.work_path, 'Output', self.name) 
 
         if not os.path.exists(self.input):
             os.makedirs(self.input)
@@ -73,7 +72,7 @@ class eBook(object):
         #extract_path = options.get("extract_path")
 
         # Unzip the file.
-        zf = zipfile.ZipFile(self.path)
+        zf = zipfile.ZipFile(self.source_path)
         uncompress_size = sum((file.file_size for file in zf.infolist()))
         extracted_size = 0
         
@@ -164,32 +163,38 @@ class eBook(object):
             self.extractThread.finished.connect(funcCompleted)
             self.extractThread.start()
         except:
-            logging.warning("Exception on {}".format(self.path), exc_info=True)
+            logging.warning("Exception on {}".format(self.source_path), exc_info=True)
         return
 
     def _save(self, signal: pyqtSignal, **options):
         """ Thread function that zip the output folder convert to ePub file. """
         logging.info("Thread function begin!")
-        first_page = options.get("first_page")
+        firstImage = options.get("firstImage")
+        firstPageNum = options.get("firstPageNum")
+        tocPageNum = options.get("tocPageNum")
         contrast = options.get("contrast")
 
         logging.debug("Thread get contrast", contrast)
         self.image_enhance(signal, contrast, 0, 50)
-        self.generate_new_structure(signal, first_page, 50, 80)
+        self.generate_new_structure(signal, firstImage, firstPageNum, tocPageNum, 50, 80)
         self.repack(signal, 80, 100)
 
         signal.emit(100)
     
-    def save(self, first_page, contrast, funcCountChanged, funcCompleted):
-        """ Save folder as ePub. """
+    def save(self, firstImage:int, firstPageNum:int, tocPageNum:int, contrast:int, funcCountChanged, funcCompleted):
+        """ Save folder as ePub. 
+        
+        firstImage: Index of the first image appear in the book, start from 1.
+        firstPageNum: Page number of the first image, value should be same or larger than firstImage.
+        """
         try:
             # Create thread to extract ePub as zip and parse its structure.
-            self.convertThread = ProgressThread(self._save, first_page=first_page, contrast=contrast)
+            self.convertThread = ProgressThread(self._save, firstImage=firstImage, firstPageNum=firstPageNum, tocPageNum=tocPageNum, contrast=contrast)
             self.convertThread.progressSignal.connect(funcCountChanged)
             self.convertThread.finished.connect(funcCompleted)
             self.convertThread.start()
         except:
-            logging.warning("Exception on {}".format(self.path), exc_info=True)
+            logging.warning("Exception on {}".format(self.source_path), exc_info=True)
         return
 
     def image_enhance(self, signal: pyqtSignal, contrast, range_min, range_max):
@@ -235,10 +240,10 @@ class eBook(object):
 
         signal.emit(range_max)
     
-    def layout_fix(self, first_page=3):
+    def layout_fix(self, firstImage=3):
         """ Split, rotate and even straighten images, this may alter the page order of the book. """
         new_pages = self.pages.copy()
-        for i, page in enumerate(self.pages[first_page-1:]):
+        for i, page in enumerate(self.pages[firstImage-1:]):
             # Get actual index from the list we are going to modify
             img = Image.open(os.path.join(self.input, page["i-path"]))
 
@@ -272,7 +277,7 @@ class eBook(object):
         self.pages = new_pages.copy()
         return
 
-    def generate_new_structure(self, signal: pyqtSignal, first_page, range_min, range_max):
+    def generate_new_structure(self, signal: pyqtSignal, firstImage, firstPageNum, tocPageNum, range_min, range_max):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
         range_portion = (range_max - range_min) / 6
 
@@ -341,10 +346,10 @@ class eBook(object):
                 _xhtml = new_xhtml
 
                 new_spine = html.new_tag("itemref", idref=_p_id, linear="yes")
-                if i < first_page - 1:
+                if i < firstImage - 1:
                     new_spine["properties"] = "rendition:page-spread-center"
                 else:
-                    new_spine["properties"] = "page-spread-right" if (first_page - 1 - i) % 2 else "page-spread-left"
+                    new_spine["properties"] = "page-spread-right" if (firstImage - 1 - i) % 2 else "page-spread-left"
                 _spine.insert_after(new_spine)
                 _spine = new_spine
                 signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*2, range_min + range_portion*3))
@@ -384,12 +389,12 @@ class eBook(object):
                 for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
                     if i == 0:
                         title = "封面"
-                    elif i < first_page:
+                    elif i < firstImage:
                         title = "插圖"
-                    elif i == first_page + 1:
+                    elif i == tocPageNum:
                         title = "目錄"
                     else:
-                        title = "第 " + str(i - first_page + 1) + " 頁"
+                        title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
                     
                     if page == self.cover:
                         _p_id = "p-cover"
@@ -429,7 +434,7 @@ class eBook(object):
                 else:
                     _file = "item/xhtml/p-{:03d}.xhtml".format(i)
         
-                html.body.div.svg["viewbox"] = "0 0 {} {}".format(page["width"], page["height"])
+                html.body.div.svg["viewBox"] = "0 0 {} {}".format(page["width"], page["height"]) # beware of the capital B!
 
                 image = html.body.div.svg.find("image")
                 image["width"] = page["width"]
@@ -450,12 +455,12 @@ class eBook(object):
             for i, page in enumerate([self.cover] + self.pages):
                 if i == 0:
                     title = "封面"
-                elif i < first_page:
+                elif i < firstImage:
                     title = "插圖"
-                elif i == first_page + 1:
+                elif i == tocPageNum:
                     title = "目錄"
                 else:
-                    title = "第 " + str(i - first_page + 1) + " 頁"                
+                    title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
 
                 if page == self.cover:
                     _p_id = "p-cover"
@@ -475,7 +480,7 @@ class eBook(object):
                 if guide_li.a.string == "表紙":
                     guide_li.a["href"] = "xhtml/p-cover.xhtml"
                 elif guide_li.a.string == "目次":
-                    guide_li.a["href"] = "xhtml/p-{:03d}.xhtml".format(first_page - 1)
+                    guide_li.a["href"] = "xhtml/p-{:03d}.xhtml".format(firstImage - 1)
                 elif guide_li.a.string == "本編":
                     guide_li.a["href"] = "xhtml/p-001.xhtml"
             with open(os.path.join(self.output, "item", "navigation-documents.xhtml"), 'w', encoding="utf-8") as f:
@@ -486,7 +491,7 @@ class eBook(object):
     def repack(self, signal: pyqtSignal, range_min, range_max):
         """ Pack everything back to an ePub file. """
         # create a ZipFile object
-        with ZipFile(os.path.join(self.root, self.name), 'w', zipfile.ZIP_STORED) as zipObj:
+        with ZipFile(os.path.join(self.work_path, self.name), 'w', zipfile.ZIP_STORED) as zipObj:
             logging.debug("Created ePub begin.")
             count = sum([len(files) for r, d, files in os.walk(self.output)])
             logging.debug("{} files in folder", count)
@@ -500,7 +505,7 @@ class eBook(object):
                     signal.emit(self.__get_progess_percentage(i, count, range_min, range_max))
                     i = i+1
 
-            logging.debug("Created ePub at " + os.path.join(self.root, self.name))
+            logging.debug("Created ePub at " + os.path.join(self.work_path, self.name))
         
         signal.emit(range_max)
 
