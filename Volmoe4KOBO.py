@@ -55,6 +55,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # pageProcess
         self.ui.buttonProcessNext.clicked.connect(self.nextButtonClicked)
 
+        # pageSave
+        self.ui.buttonSaveFile.clicked.connect(self.saveFileButtonClicked)
+
         self.ui.toolBox.setCurrentIndex(0)
 
     def closeEvent(self, event):
@@ -109,8 +112,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif currentPage == 'pageProcess':
             self.ui.progressBarSave.hide()
             self.book.save(self.firstImage, self.firstPageNum, self.tocPageNum, self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
-        elif currentPage == 'pageUpload':
-            for book in self.books:
+        elif currentPage == 'pageSave':
                 print("hello")
 
     def loadProgressChanged(self, value):
@@ -136,14 +138,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveCompleted(self):
         self.ui.buttonProcessNext.setEnabled(True)
-        save_path = settings.value("path/save", os.path.expanduser("~/Documents"))
-        path = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
-        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
-        # Move output file from work folder for to save location.        
-        os.replace(os.path.join(work_path, self.file), path[0])
-        # Update save path
-        save_path, _ = os.path.split(path[0])
-        settings.setValue("path/save", save_path)
 
     def firstPagePreviewChanged(self):
             i = self.ui.scrollFirstPage.value()
@@ -180,6 +174,16 @@ class MainWindow(QtWidgets.QMainWindow):
             image = book.get_page(i)
             self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
             self.ui.labelTOCPage.setText(str(i))
+
+    def saveFileButtonClicked(self):        
+        save_path = settings.value("path/save", os.path.expanduser("~/Documents"))
+        path = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
+        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        # Move output file from work folder for to save location.        
+        os.replace(os.path.join(work_path, self.file), path[0])
+        # Update save path
+        save_path, _ = os.path.split(path[0])
+        settings.setValue("path/save", save_path)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
