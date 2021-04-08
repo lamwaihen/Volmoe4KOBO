@@ -807,30 +807,14 @@
            </widget>
           </item>
           <item row="0" column="2">
-           <layout class="QHBoxLayout" name="horizontalLayout_9">
+           <layout class="QHBoxLayout" name="tocHorizontalLayout">
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_7">
+             <layout class="QVBoxLayout" name="tocButtonVerticalLayout">
               <property name="leftMargin">
                <number>0</number>
               </property>
               <item>
-               <widget class="QPushButton" name="delTOCButton_0">
-                <property name="maximumSize">
-                 <size>
-                  <width>21</width>
-                  <height>21</height>
-                 </size>
-                </property>
-              <property name="text">
-                 <string>X</string>
-                </property>
-                <property name="icon">
-                 <iconset theme="delete"/>
-              </property>
-             </widget>
-            </item>
-            <item>
-               <widget class="QPushButton" name="addTOCButton_1">
+               <widget class="QPushButton" name="tocAddButton">
                 <property name="maximumSize">
                  <size>
                   <width>21</width>
@@ -858,16 +842,13 @@
              </layout>
             </item>
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_8">
+             <layout class="QVBoxLayout" name="tocLineVerticalLayout">
               <property name="spacing">
                <number>6</number>
               </property>
               <property name="leftMargin">
                <number>0</number>
               </property>
-              <item>
-               <widget class="QLineEdit" name="editTOCContent_0"/>
-              </item>
               <item>
                <spacer name="verticalSpacer_2">
               <property name="orientation">
@@ -884,29 +865,10 @@
              </layout>
             </item>
             <item>
-             <layout class="QVBoxLayout" name="verticalLayout_9">
+             <layout class="QVBoxLayout" name="tocPageVerticalLayout">
               <property name="leftMargin">
                <number>0</number>
               </property>
-              <item>
-               <widget class="QLineEdit" name="editTOCPage_0">
-                <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                  <horstretch>0</horstretch>
-                  <verstretch>0</verstretch>
-                 </sizepolicy>
-                </property>
-                <property name="maximumSize">
-                 <size>
-                  <width>40</width>
-                  <height>16777215</height>
-                 </size>
-                </property>
-                <property name="maxLength">
-                 <number>3</number>
-              </property>
-             </widget>
-            </item>
               <item>
                <spacer name="verticalSpacer_3">
                 <property name="orientation">
@@ -923,6 +885,19 @@
            </layout>
           </item>
            </layout>
+          </item>
+          <item row="2" column="2">
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
           </item>
          </layout>
         </item>

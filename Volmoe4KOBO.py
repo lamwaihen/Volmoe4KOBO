@@ -50,6 +50,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # pageTOC
         self.ui.checkBoxHasTOC.stateChanged.connect(lambda:self.hasTOCChanged(self.ui.checkBoxHasTOC))
         self.ui.scrollTOCPage.valueChanged.connect(self.tocPreviewChanged)
+        self.ui.tocAddButton.clicked.connect(self.tocAddRowClicked)
         self.ui.buttonTOCPageNext.clicked.connect(self.nextButtonClicked)
 
         # pageProcess
@@ -74,6 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.firstImage = 3 # Assume the 3rd image is the first page
         self.firstPageNum = 1   # And the first page is page 1.
         self.tocPageNum = 3 # Page number of TOC, -1 if not available.
+        self.toc = {}
 
         
     def openFileDialog(self):
@@ -110,8 +112,17 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.scrollTOCPage.setValue(self.tocPageNum)
             self.ui.checkBoxHasTOC.setChecked(True if self.tocPageNum > 0 else False)
         elif currentPage == 'pageProcess':
+            # Pack TOC
+            for i in range(self.ui.tocLineVerticalLayout.count()): 
+                if self.ui.tocLineVerticalLayout.itemAt(i).widget() is None:
+                    continue
+                key = self.ui.tocLineVerticalLayout.itemAt(i).widget().text()
+                value = self.ui.tocPageVerticalLayout.itemAt(i).widget().text()
+                if len(key) > 0 and len(value):
+                    self.toc[key] = int(value)
+
             self.ui.progressBarSave.hide()
-            self.book.save(self.firstImage, self.firstPageNum, self.tocPageNum, self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
+            self.book.save(self.firstImage, self.firstPageNum, self.tocPageNum, self.toc, self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
         elif currentPage == 'pageSave':
                 print("hello")
 
@@ -169,11 +180,58 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tocPageNum = self.ui.scrollTOCPage.value() if checkbox.isChecked() else -1
         
     def tocPreviewChanged(self):
-        for book in self.books:
             i = self.ui.scrollTOCPage.value()
-            image = book.get_page(i)
+        image = self.book.get_page(i)
             self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
             self.ui.labelTOCPage.setText(str(i))
+
+    def tocAddRow(self, index):
+        insert_at = 0
+        for i in range(self.ui.tocButtonVerticalLayout.count()): 
+            child = self.ui.tocButtonVerticalLayout.itemAt(i).widget() 
+            if child is not None and "tocAddButton" == child.objectName():
+                insert_at = i
+                break
+
+        # We start with a simple add button
+        tocDelButton = QtWidgets.QPushButton(text="X")
+        tocDelButton.setMaximumSize(QtCore.QSize(21, 21))
+        tocDelButton.setObjectName("tocDelButton_{}".format(index))
+        tocDelButton.clicked.connect(lambda:self.tocDelRowClicked(tocDelButton))
+        self.ui.tocButtonVerticalLayout.insertWidget(insert_at, tocDelButton)
+
+        tocEditLine = QtWidgets.QLineEdit()
+        tocEditLine.setObjectName("editTOCContent_{}".format(index))
+        self.ui.tocLineVerticalLayout.insertWidget(insert_at, tocEditLine)
+
+        tocEditPage = QtWidgets.QLineEdit()
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(tocEditPage.sizePolicy().hasHeightForWidth())
+        tocEditPage.setSizePolicy(sizePolicy)
+        tocEditPage.setMaximumSize(QtCore.QSize(40, 16777215))
+        tocEditPage.setMaxLength(3)
+        tocEditPage.setObjectName("editTOCPage_{}".format(index))
+        self.ui.tocPageVerticalLayout.insertWidget(insert_at, tocEditPage)
+
+    def tocAddRowClicked(self):
+        rows = self.ui.tocButtonVerticalLayout.count() - 2
+        if rows <= 0:
+            index = 0
+        else:
+            button_name = self.ui.tocButtonVerticalLayout.itemAt(rows-1).widget().objectName()
+            index = int(button_name.replace("tocDelButton_", "")) + 1
+        self.tocAddRow(index)
+
+    def tocDelRowClicked(self, button):
+        button_name = button.objectName()
+        for i in range(self.ui.tocButtonVerticalLayout.count()): 
+            if button_name == self.ui.tocButtonVerticalLayout.itemAt(i).widget().objectName():
+                self.ui.tocButtonVerticalLayout.itemAt(i).widget().deleteLater()
+                self.ui.tocLineVerticalLayout.itemAt(i).widget().deleteLater()
+                self.ui.tocPageVerticalLayout.itemAt(i).widget().deleteLater()
+                break
 
     def saveFileButtonClicked(self):        
         save_path = settings.value("path/save", os.path.expanduser("~/Documents"))

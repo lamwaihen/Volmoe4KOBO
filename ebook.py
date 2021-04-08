@@ -47,8 +47,6 @@ class eBook(object):
             os.makedirs(self.output)
 
         self.width = None
-        self.toc_changed = False # Indicate whether user has changed toc or not.
-        self.toc = []
         logging.debug("Ready to open " + self.name)
         return
     
@@ -172,16 +170,17 @@ class eBook(object):
         firstImage = options.get("firstImage")
         firstPageNum = options.get("firstPageNum")
         tocPageNum = options.get("tocPageNum")
+        toc = options.get("toc")
         contrast = options.get("contrast")
 
-        logging.debug("Thread get contrast", contrast)
+        logging.debug("Thread get contrast {}", contrast)
         self.image_enhance(signal, contrast, 0, 50)
-        self.generate_new_structure(signal, firstImage, firstPageNum, tocPageNum, 50, 80)
+        self.generate_new_structure(signal, firstImage, firstPageNum, tocPageNum, toc, 50, 80)
         self.repack(signal, 80, 100)
 
         signal.emit(100)
     
-    def save(self, firstImage:int, firstPageNum:int, tocPageNum:int, contrast:int, funcCountChanged, funcCompleted):
+    def save(self, firstImage:int, firstPageNum:int, tocPageNum:int, toc:dict, contrast:int, funcCountChanged, funcCompleted):
         """ Save folder as ePub. 
         
         firstImage: Index of the first image appear in the book, start from 1.
@@ -189,7 +188,7 @@ class eBook(object):
         """
         try:
             # Create thread to extract ePub as zip and parse its structure.
-            self.convertThread = ProgressThread(self._save, firstImage=firstImage, firstPageNum=firstPageNum, tocPageNum=tocPageNum, contrast=contrast)
+            self.convertThread = ProgressThread(self._save, firstImage=firstImage, firstPageNum=firstPageNum, tocPageNum=tocPageNum, toc=toc, contrast=contrast)
             self.convertThread.progressSignal.connect(funcCountChanged)
             self.convertThread.finished.connect(funcCompleted)
             self.convertThread.start()
@@ -277,7 +276,7 @@ class eBook(object):
         self.pages = new_pages.copy()
         return
 
-    def generate_new_structure(self, signal: pyqtSignal, firstImage, firstPageNum, tocPageNum, range_min, range_max):
+    def generate_new_structure(self, signal: pyqtSignal, firstImage, firstPageNum, tocPageNum, toc, range_min, range_max):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
         range_portion = (range_max - range_min) / 6
 
@@ -367,25 +366,6 @@ class eBook(object):
             html.ncx.head.find("meta", attrs={'name':'dtb:totalPageCount'})["content"] = len(self.pages)
             html.ncx.head.find("meta", attrs={'name':'dtb:maxPageNumber'})["content"] = len(self.pages)
 
-            if self.toc_changed:
-                print("self toc ", self.toc)
-                for row in self.toc:  
-                    print("row: ", row)        
-                    chapter = row[0]
-                    page = int(row[-1])
-                    i = self.pages[page-1]
-                    print("Ch {} page {}, item {}".format(chapter, page, i))
-
-                    new_page = ncx.new_tag("navPoint", id=i["p-id"], playorder=str(page))
-                    label = ncx.new_tag("navLabel")
-                    text = ncx.new_tag("text")
-                    text.string = chapter
-                    label.append(text)
-                    new_page.append(label)
-                    content = ncx.new_tag("content", src="../"+i["p-path"])
-                    new_page.append(content)
-                    navpt_createby.insert_before(new_page)
-            else:
                 for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
                     if i == 0:
                         title = "封面"
@@ -393,6 +373,14 @@ class eBook(object):
                         title = "插圖"
                     elif i == tocPageNum:
                         title = "目錄"
+                    else:
+                    if len(toc):                            
+                        if (i - firstImage + firstPageNum) in toc.values():
+                            chapter = list(toc.keys())[list(toc.values()).index(i - firstImage + firstPageNum)]
+                            logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
+                            title = chapter
+                        else:
+                            continue
                     else:
                         title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
                     
@@ -449,8 +437,8 @@ class eBook(object):
         with open("./Res/navigation-documents.html", 'r', encoding="utf-8") as nd_file:
             html = BeautifulSoup(nd_file, 'html.parser')
 
-            toc = html.find("nav", id="toc")
-            guide = html.find("nav", id="guide")
+            nav_toc = html.find("nav", id="toc")
+            nav_guide = html.find("nav", id="guide")
 
             for i, page in enumerate([self.cover] + self.pages):
                 if i == 0:
@@ -460,6 +448,14 @@ class eBook(object):
                 elif i == tocPageNum:
                     title = "目錄"
                 else:
+                    if len(toc):                            
+                        if (i - firstImage + firstPageNum) in toc.values():
+                            chapter = list(toc.keys())[list(toc.values()).index(i - firstImage + firstPageNum)]
+                            logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
+                            title = chapter
+                        else:
+                            continue
+                    else:
                     title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
 
                 if page == self.cover:
@@ -473,10 +469,10 @@ class eBook(object):
                 toc_a = html.new_tag("a", href="xhtml/{}.xhtml".format(_p_id))
                 toc_a.string = title
                 toc_li.append(toc_a)
-                toc.ol.append(toc_li)
+                nav_toc.ol.append(toc_li)
                 signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*5, range_max))
 
-            for guide_li in guide.find_all("li"):
+            for guide_li in nav_guide.find_all("li"):
                 if guide_li.a.string == "表紙":
                     guide_li.a["href"] = "xhtml/p-cover.xhtml"
                 elif guide_li.a.string == "目次":
@@ -494,7 +490,7 @@ class eBook(object):
         with ZipFile(os.path.join(self.work_path, self.name), 'w', zipfile.ZIP_STORED) as zipObj:
             logging.debug("Created ePub begin.")
             count = sum([len(files) for r, d, files in os.walk(self.output)])
-            logging.debug("{} files in folder", count)
+            logging.debug("{} files in folder".format(count))
             i = 0
             # Add multiple files to the zip
             for folderName, subfolders, filenames in os.walk(self.output):
