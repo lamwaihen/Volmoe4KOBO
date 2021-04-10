@@ -110,6 +110,7 @@ class eBook(object):
                 "height": height
             }
             self.book_width = width
+            self.book_height = height
             logging.info("cover: " + str(self.cover))
 
             width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="img_createby").get("href")))
@@ -249,7 +250,7 @@ class eBook(object):
             width = page["width"]
             height = page["height"]
             # Found page that needs rotate
-            if height >= self.book_width * 2 and width >= self.book_width:
+            if self.book_width * 2.1 >= height >= self.book_width * 1.9 and self.book_height * 1.1 >= width >= self.book_height * 0.9:
                 logging.info("Rotate and split {} {}".format(page["i-id"], page["i-path"]))
                 # Rotate
                 img = img.rotate(270, expand=True)
@@ -282,11 +283,13 @@ class eBook(object):
 
         # Copy all other unchanged stuffs
         copyfile("./Res/mimetype", os.path.join(self.output, "mimetype"))
+        if os.path.exists(os.path.join(self.output, "item", "style")):
+            rmtree(os.path.join(self.output, "item", "style"))
         copytree("./Res/style", os.path.join(self.output, "item", "style"))
         if not os.path.exists(os.path.join(self.output, "item", "image")):
             os.makedirs(os.path.join(self.output, "item", "image"))
-        os.makedirs(os.path.join(self.output, "item", "xhtml"))
-        os.makedirs(os.path.join(self.output, "META-INF"))
+        os.makedirs(os.path.join(self.output, "item", "xhtml"), exist_ok=True)
+        os.makedirs(os.path.join(self.output, "META-INF"), exist_ok=True)
         copyfile("./Res/container.xml", os.path.join(self.output, "META-INF", "container.xml"))
         signal.emit(range_min + range_portion)
 
