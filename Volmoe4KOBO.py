@@ -31,11 +31,18 @@ class MainWindow(QtWidgets.QMainWindow):
         palette4.setBrush(self.backgroundRole(), QtGui.QColor(50, 122, 122))
         self.setPalette(palette1)
 
-        self.ui.toolBox.currentChanged.connect(self.showCurrentPage)
+        self.ui.stackedWidget.currentChanged.connect(self.showCurrentPage)
+
+        self.ui.buttonSelectFile.clicked.connect(self.openFileDialog)
+        self.ui.progressBarLoad.setHidden(True)
+        self.ui.labelBookName.setHidden(True)
+
+        self.ui.statusbar.setHidden(True)
 
         # pageBegin
+
+        # pageBookInfo
         self.ui.buttonBeginNext.clicked.connect(self.nextButtonClicked)
-        self.ui.buttonSelectFile.clicked.connect(self.openFileDialog)
 
         # pageFirstPage
         self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
@@ -59,10 +66,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # pageSave
         self.ui.buttonSaveFile.clicked.connect(self.saveFileButtonClicked)
 
-        self.ui.toolBox.setCurrentIndex(0)
-
     def closeEvent(self, event):
-        rmtree(self.tmp, ignore_errors=True)
+        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        rmtree(work_path, ignore_errors=True)
 
     def showEvent(self, event):    
         work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
@@ -77,41 +83,60 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tocPageNum = 3 # Page number of TOC, -1 if not available.
         self.toc = {}
 
-        
     def openFileDialog(self):
         load_path = settings.value("path/load", "C:\\")
         path = QtWidgets.QFileDialog.getOpenFileName(self, "Open file", load_path, "KOBO ePub (*.kepub.epub)")
         # Update settings
         load_path, self.file = os.path.split(path[0])
+        if len(load_path):
         settings.setValue("path/load", load_path)
 
         work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
         self.book = eBook(path[0], work_path)
         self.book.load(self.loadProgressChanged, self.loadCompleted)
 
+            self.ui.buttonSelectFile.setHidden(True)
+
     def nextButtonClicked(self):
-        x = self.ui.toolBox.currentIndex()
-        self.ui.toolBox.setCurrentIndex(x+1)
+        x = self.ui.stackedWidget.currentIndex()
+        self.ui.stackedWidget.setCurrentIndex(x+1)
 
     def showCurrentPage(self):
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
         if currentPage == 'pageBegin':
-            self.ui.progressBarLoad.hide()
+            print("hello")
+        elif currentPage == 'pageBookInfo':
+            # update UI
+            self.ui.tabButtonInfo.setEnabled(True)        
+            self.ui.progressBarLoad.setHidden(True)
+            self.ui.labelBookName.setHidden(False)            
+            self.ui.labelBookName.setText(self.book.get_info("Title"))
+            self.ui.labelPath.setText("filename")
+            self.ui.labelTitle.setText(self.book.get_info("Title"))
+            self.ui.labelAuthor.setText(self.book.get_info("Author"))
+            self.ui.labelPageCount.setText(self.book.get_info("PageCount"))
+            self.ui.imageCover.setPixmap(QtGui.QPixmap(self.book.get_cover_page()))
+
+            self.ui.buttonBeginNext.setEnabled(True)            
         elif currentPage == 'pageFirstPage':
+            self.ui.tabButtonFirstPage.setEnabled(True)
             size = int(self.book.get_info("PageCount"))
             self.ui.scrollFirstPage.setMaximum(size)
             self.ui.scrollFirstPage.setValue(self.firstImage)
         elif currentPage == 'pageImageEnhance':
+            self.ui.tabButtonImageEnhance.setEnabled(True)
             self.book.layout_fix(self.ui.scrollFirstPage.value())
             size = int(self.book.get_info("PageCount"))
                 self.ui.scrollEnhancePage.setRange(1, size)
                 self.ui.scrollEnhancePage.setValue(5)
         elif currentPage == 'pageTOC':
+            self.ui.tabButtonTOC.setEnabled(True)
             size = int(self.book.get_info("PageCount"))
             self.ui.scrollTOCPage.setMaximum(size)
             self.ui.scrollTOCPage.setValue(self.tocPageNum)
             self.ui.checkBoxHasTOC.setChecked(True if self.tocPageNum > 0 else False)
         elif currentPage == 'pageProcess':
+            self.ui.tabButtonProcess.setEnabled(True)
             # Pack TOC
             for i in range(self.ui.tocLineVerticalLayout.count()): 
                 if self.ui.tocLineVerticalLayout.itemAt(i).widget() is None:
@@ -124,7 +149,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.progressBarSave.hide()
             self.book.save(self.firstImage, self.firstPageNum, self.tocPageNum, self.toc, self.ui.sliderContrast.value(), self.saveProgressChanged, self.saveCompleted)
         elif currentPage == 'pageSave':
-                print("hello")
+            self.ui.tabButtonSaveFile.setEnabled(True)
 
     def loadProgressChanged(self, value):
         self.ui.progressBarLoad.show()
@@ -134,14 +159,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.book.parse()
         self.books.append(self.book)
         
-        # update UI
-        self.ui.labelPath.setText("filename")
-        self.ui.labelTitle.setText(self.book.get_info("Title"))
-        self.ui.labelAuthor.setText(self.book.get_info("Author"))
-        self.ui.labelPageCount.setText(self.book.get_info("PageCount"))
-        self.ui.imageCover.setPixmap(QtGui.QPixmap(self.book.get_cover_page()))
-
-        self.ui.buttonBeginNext.setEnabled(True)
+        self.ui.stackedWidget.setCurrentWidget(self.ui.pageBookInfo)
 
     def saveProgressChanged(self, value):
         self.ui.progressBarSave.show()
@@ -195,7 +213,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # We start with a simple add button
         tocDelButton = QtWidgets.QPushButton(text="X")
-        tocDelButton.setMaximumSize(QtCore.QSize(21, 21))
+        tocDelButton.setMaximumSize(QtCore.QSize(36, 36))
+        tocDelButton.setMinimumSize(QtCore.QSize(36, 36))
         tocDelButton.setObjectName("tocDelButton_{}".format(index))
         tocDelButton.clicked.connect(lambda:self.tocDelRowClicked(tocDelButton))
         self.ui.tocButtonVerticalLayout.insertWidget(insert_at, tocDelButton)
@@ -210,7 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(tocEditPage.sizePolicy().hasHeightForWidth())
         tocEditPage.setSizePolicy(sizePolicy)
-        tocEditPage.setMaximumSize(QtCore.QSize(40, 16777215))
+        tocEditPage.setMaximumSize(QtCore.QSize(54, 16777215))
         tocEditPage.setMaxLength(3)
         tocEditPage.setObjectName("editTOCPage_{}".format(index))
         self.ui.tocPageVerticalLayout.insertWidget(insert_at, tocEditPage)
