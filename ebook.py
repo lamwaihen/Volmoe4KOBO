@@ -91,7 +91,7 @@ class eBook(object):
             logging.info("identifier: " + self.identifier)
             self.title = opf.find('dc:title').text
             logging.info("Title: " + self.title)
-            self.language = opf.find('dc:language').text
+            self.language = "zh-TW" # opf.find('dc:language').text
             logging.info("language: " + self.language)
             self.creator = opf.find('dc:creator').text
             logging.info("creator: " + self.creator)
@@ -382,6 +382,8 @@ class eBook(object):
                             chapter = list(toc.keys())[list(toc.values()).index(i - firstImage + firstPageNum)]
                             logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
                             title = chapter
+                        elif i == firstImage:
+                            title = "頁首"
                         else:
                             continue
                     else:
@@ -456,6 +458,8 @@ class eBook(object):
                             chapter = list(toc.keys())[list(toc.values()).index(i - firstImage + firstPageNum)]
                             logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
                             title = chapter
+                        elif i == firstImage:
+                            title = "頁首"                            
                         else:
                             continue
                     else:

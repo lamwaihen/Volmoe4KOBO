@@ -62,6 +62,7 @@ def panel_blocks(cvImage: numpy.uint8, preview = False) -> numpy.uint8:
             line_right = column
             break
 
+    if line_left is not None and line_right is not None:
     column = line_left if line_left < (width - line_right) else line_right
     logging.debug("Left {} Right {}, we pick {}".format(line_left, (width - line_right), column))
     first = numpy.where(closed[column] < 255)

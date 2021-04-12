@@ -32,7 +32,11 @@
    <enum>Qt::NoContextMenu</enum>
   </property>
   <property name="windowTitle">
-   <string>Volmoe4KOBO</string>
+   <string>Manga4KOBO</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../Res/icon-256.png</normaloff>../Res/icon-256.png</iconset>
   </property>
   <property name="styleSheet">
    <string notr="true">QLabel {	color: rgb(52, 124, 124);	}
@@ -732,6 +736,13 @@ TabButton:disabled {
                </spacer>
               </item>
               <item>
+               <widget class="QPushButton" name="buttonFirstPagePrev">
+                <property name="text">
+                 <string>上一步</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="buttonFirstPageNext">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -916,6 +927,13 @@ TabButton:disabled {
                </spacer>
               </item>
               <item>
+               <widget class="QPushButton" name="buttonEnhancePagePrev">
+                <property name="text">
+                 <string>上一步</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="buttonEnhancePageNext">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -987,16 +1005,22 @@ TabButton:disabled {
                     </item>
                     <item>
                      <widget class="QPushButton" name="tocAddButton">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
                       <property name="minimumSize">
                        <size>
-                        <width>36</width>
-                        <height>36</height>
+                        <width>38</width>
+                        <height>38</height>
                        </size>
                       </property>
                       <property name="maximumSize">
                        <size>
-                        <width>36</width>
-                        <height>36</height>
+                        <width>38</width>
+                        <height>38</height>
                        </size>
                       </property>
                       <property name="text">
@@ -1151,6 +1175,13 @@ TabButton:disabled {
                </spacer>
               </item>
               <item>
+               <widget class="QPushButton" name="buttonTOCPagePrev">
+                <property name="text">
+                 <string>上一步</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="buttonTOCPageNext">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -1210,6 +1241,13 @@ TabButton:disabled {
                  </size>
                 </property>
                </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="buttonProcessPrev">
+                <property name="text">
+                 <string>上一步</string>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QPushButton" name="buttonProcessNext">

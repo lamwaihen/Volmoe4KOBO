@@ -47,20 +47,24 @@ class MainWindow(QtWidgets.QMainWindow):
         # pageFirstPage
         self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
         self.ui.spinFirstPage.valueChanged.connect(self.firstPageSpinChanged)
+        self.ui.buttonFirstPagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)        
 
         # pageImageEnhance
         self.ui.scrollEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
         self.ui.sliderContrast.valueChanged.connect(self.imageEnhancePreviewChanged)
+        self.ui.buttonEnhancePagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
 
         # pageTOC
         self.ui.checkBoxHasTOC.stateChanged.connect(lambda:self.hasTOCChanged(self.ui.checkBoxHasTOC))
         self.ui.scrollTOCPage.valueChanged.connect(self.tocPreviewChanged)
         self.ui.tocAddButton.clicked.connect(self.tocAddRowClicked)
+        self.ui.buttonTOCPagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonTOCPageNext.clicked.connect(self.nextButtonClicked)
 
         # pageProcess
+        self.ui.buttonProcessPrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonProcessNext.clicked.connect(self.nextButtonClicked)
 
         # pageSave
@@ -101,6 +105,10 @@ class MainWindow(QtWidgets.QMainWindow):
         x = self.ui.stackedWidget.currentIndex()
         self.ui.stackedWidget.setCurrentIndex(x+1)
 
+    def prevButtonClicked(self):
+        x = self.ui.stackedWidget.currentIndex()
+        self.ui.stackedWidget.setCurrentIndex(x-1)
+
     def showCurrentPage(self):
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
         if currentPage == 'pageBegin':
@@ -139,6 +147,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.tabButtonProcess.setEnabled(True)
             # Pack TOC
             for i in range(self.ui.tocLineVerticalLayout.count()): 
+                # Skip the first row of header
+                if i == 0:
+                    continue
                 if self.ui.tocLineVerticalLayout.itemAt(i).widget() is None:
                     continue
                 key = self.ui.tocLineVerticalLayout.itemAt(i).widget().text()
@@ -202,6 +213,7 @@ class MainWindow(QtWidgets.QMainWindow):
         image = self.book.get_page(i)
             self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
             self.ui.labelTOCPage.setText(str(i))
+        self.tocPageNum = i
 
     def tocAddRow(self, index):
         insert_at = 0
@@ -213,8 +225,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # We start with a simple add button
         tocDelButton = QtWidgets.QPushButton(text="X")
-        tocDelButton.setMaximumSize(QtCore.QSize(36, 36))
-        tocDelButton.setMinimumSize(QtCore.QSize(36, 36))
+        tocDelButton.setMaximumSize(QtCore.QSize(38, 38))
+        tocDelButton.setMinimumSize(QtCore.QSize(38, 38))
         tocDelButton.setObjectName("tocDelButton_{}".format(index))
         tocDelButton.clicked.connect(lambda:self.tocDelRowClicked(tocDelButton))
         self.ui.tocButtonVerticalLayout.insertWidget(insert_at, tocDelButton)
@@ -235,11 +247,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.tocPageVerticalLayout.insertWidget(insert_at, tocEditPage)
 
     def tocAddRowClicked(self):
-        rows = self.ui.tocButtonVerticalLayout.count() - 2
-        if rows <= 0:
+        count = self.ui.tocButtonVerticalLayout.count()
+        if count <= 3:
             index = 0
         else:
-            button_name = self.ui.tocButtonVerticalLayout.itemAt(rows-1).widget().objectName()
+            # The 3rd last button is the last delete button.
+            # label ... del ... add ... spacer
+            button_name = self.ui.tocButtonVerticalLayout.itemAt(count-3).widget().objectName()
             index = int(button_name.replace("tocDelButton_", "")) + 1
         self.tocAddRow(index)
 
