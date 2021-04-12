@@ -111,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.progressBarLoad.setHidden(True)
             self.ui.labelBookName.setHidden(False)            
             self.ui.labelBookName.setText(self.book.get_info("Title"))
-            self.ui.labelPath.setText("filename")
+            self.ui.labelPath.setText(os.path.join(settings.value("path/load"), self.file))
             self.ui.labelTitle.setText(self.book.get_info("Title"))
             self.ui.labelAuthor.setText(self.book.get_info("Author"))
             self.ui.labelPageCount.setText(self.book.get_info("PageCount"))
