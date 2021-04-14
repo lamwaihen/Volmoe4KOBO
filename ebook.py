@@ -73,7 +73,7 @@ class eBook(object):
         zf = zipfile.ZipFile(self.source_path)
         uncompress_size = sum((file.file_size for file in zf.infolist()))
         extracted_size = 0
-        
+
         for file in zf.infolist():
             extracted_size += file.file_size
             percentage = int(extracted_size * 100/uncompress_size)
@@ -121,7 +121,6 @@ class eBook(object):
                 "height": height
             }
             logging.info("colophon: " + str(self.colophon))
-
 
             self.pages = []
             htmls = opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
@@ -307,7 +306,7 @@ class eBook(object):
             page["i-id"] = _i_id
             page["i-path"] = "../image/{}.jpg".format(_i_id)
             signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion, range_min + range_portion*2))
-            
+
         # opf
         with open(self.__bundle_path("Res/standard.opf"), 'r', encoding="utf-8") as opf_file:
             html = BeautifulSoup(opf_file, 'html.parser')
@@ -369,14 +368,14 @@ class eBook(object):
             html.ncx.head.find("meta", attrs={'name':'dtb:totalPageCount'})["content"] = len(self.pages)
             html.ncx.head.find("meta", attrs={'name':'dtb:maxPageNumber'})["content"] = len(self.pages)
 
-                for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
-                    if i == 0:
-                        title = "封面"
-                    elif i < firstImage:
-                        title = "插圖"
-                    elif i == tocPageNum:
-                        title = "目錄"
-                    else:
+            for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
+                if i == 0:
+                    title = "封面"
+                elif i < firstImage:
+                    title = "插圖"
+                elif i == tocPageNum:
+                    title = "目錄"
+                else:
                     if len(toc):                            
                         if (i - firstImage + firstPageNum) in toc.values():
                             chapter = list(toc.keys())[list(toc.values()).index(i - firstImage + firstPageNum)]
@@ -388,24 +387,24 @@ class eBook(object):
                             continue
                     else:
                         title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
-                    
-                    if page == self.cover:
-                        _p_id = "p-cover"
-                    elif page == self.colophon:
-                        _p_id = "p-colophon"
-                    else:
-                        _p_id = "p-{:03d}".format(i)
 
-                    navPoint = html.new_tag("navPoint", id="xhtml-"+_p_id, playorder=i+1)
-                    label = html.new_tag("navLabel")
-                    text = html.new_tag("text")
-                    text.string = title
-                    label.append(text)
-                    navPoint.append(label)
-                    content = html.new_tag("content", src="xhtml/{}.xhtml".format(_p_id))
-                    navPoint.append(content)
-                    html.ncx.navmap.append(navPoint)
-                    signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion*3, range_min + range_portion*4))
+                if page == self.cover:
+                    _p_id = "p-cover"
+                elif page == self.colophon:
+                    _p_id = "p-colophon"
+                else:
+                    _p_id = "p-{:03d}".format(i)
+
+                navPoint = html.new_tag("navPoint", id="xhtml-"+_p_id, playorder=i+1)
+                label = html.new_tag("navLabel")
+                text = html.new_tag("text")
+                text.string = title
+                label.append(text)
+                navPoint.append(label)
+                content = html.new_tag("content", src="xhtml/{}.xhtml".format(_p_id))
+                navPoint.append(content)
+                html.ncx.navmap.append(navPoint)
+                signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion*3, range_min + range_portion*4))
 
             with open(os.path.join(self.output, "item", "toc.ncx"), 'w', encoding="utf-8") as f:
                 f.write(html.prettify())
@@ -426,7 +425,7 @@ class eBook(object):
                     _file = "item/xhtml/p-colophon.xhtml"
                 else:
                     _file = "item/xhtml/p-{:03d}.xhtml".format(i)
-        
+
                 html.body.div.svg["viewBox"] = "0 0 {} {}".format(page["width"], page["height"]) # beware of the capital B!
 
                 image = html.body.div.svg.find("image")
@@ -436,7 +435,7 @@ class eBook(object):
                 signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion*4, range_min + range_portion*5))
 
                 with open(os.path.join(self.output, _file), 'w', encoding="utf-8") as f:
-                    f.write(str(html))            
+                    f.write(str(html))
 
         # navigation-documents
         with open(self.__bundle_path("Res/navigation-documents.html"), 'r', encoding="utf-8") as nd_file:
@@ -463,7 +462,7 @@ class eBook(object):
                         else:
                             continue
                     else:
-                    title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
+                        title = "第 " + str(i - firstImage + firstPageNum) + " 頁"
 
                 if page == self.cover:
                     _p_id = "p-cover"

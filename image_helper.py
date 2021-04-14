@@ -63,12 +63,12 @@ def panel_blocks(cvImage: numpy.uint8, preview = False) -> numpy.uint8:
             break
 
     if line_left is not None and line_right is not None:
-    column = line_left if line_left < (width - line_right) else line_right
-    logging.debug("Left {} Right {}, we pick {}".format(line_left, (width - line_right), column))
-    first = numpy.where(closed[column] < 255)
-    if len(first) and len(first[0]):
-        #closed[column][first[0][0]:first[0][-1]+1] = 0
-        closed = cv2.line(closed, (first[0][0], column), (first[0][-1]+1, column), (0,0,0), 1)
+        column = line_left if line_left < (width - line_right) else line_right
+        logging.debug("Left {} Right {}, we pick {}".format(line_left, (width - line_right), column))
+        first = numpy.where(closed[column] < 255)
+        if len(first) and len(first[0]):
+            #closed[column][first[0][0]:first[0][-1]+1] = 0
+            closed = cv2.line(closed, (first[0][0], column), (first[0][-1]+1, column), (0,0,0), 1)
     
     # Rotate back to normal
     closed = cv2.rotate(closed, cv2.ROTATE_90_COUNTERCLOCKWISE)

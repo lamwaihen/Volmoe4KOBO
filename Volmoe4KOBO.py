@@ -48,7 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
         self.ui.spinFirstPage.valueChanged.connect(self.firstPageSpinChanged)
         self.ui.buttonFirstPagePrev.clicked.connect(self.prevButtonClicked)
-        self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)        
+        self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)
 
         # pageImageEnhance
         self.ui.scrollEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
@@ -135,8 +135,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.tabButtonImageEnhance.setEnabled(True)
             self.book.layout_fix(self.ui.scrollFirstPage.value())
             size = int(self.book.get_info("PageCount"))
-                self.ui.scrollEnhancePage.setRange(1, size)
-                self.ui.scrollEnhancePage.setValue(5)
+            self.ui.scrollEnhancePage.setRange(1, size)
+            self.ui.scrollEnhancePage.setValue(5)
         elif currentPage == 'pageTOC':
             self.ui.tabButtonTOC.setEnabled(True)
             size = int(self.book.get_info("PageCount"))
@@ -146,7 +146,7 @@ class MainWindow(QtWidgets.QMainWindow):
         elif currentPage == 'pageProcess':
             self.ui.tabButtonProcess.setEnabled(True)
             # Pack TOC
-            for i in range(self.ui.tocLineVerticalLayout.count()): 
+            for i in range(self.ui.tocLineVerticalLayout.count()):
                 # Skip the first row of header
                 if i == 0:
                     continue
@@ -169,7 +169,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def loadCompleted(self):
         #self.book.parse()
         self.books.append(self.book)
-        
+
         self.ui.stackedWidget.setCurrentWidget(self.ui.pageBookInfo)
 
     def saveProgressChanged(self, value):
@@ -180,11 +180,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.buttonProcessNext.setEnabled(True)
 
     def firstPagePreviewChanged(self):
-            i = self.ui.scrollFirstPage.value()
+        i = self.ui.scrollFirstPage.value()
         image = self.book.get_page(i)
-            pixmap = QtGui.QPixmap(image)
-            self.ui.imageFirstPage.setPixmap(pixmap)
-            self.ui.labelFirstPage.setText(str(i))
+        pixmap = QtGui.QPixmap(image)
+        self.ui.imageFirstPage.setPixmap(pixmap)
+        self.ui.labelFirstPage.setText(str(i))
         # Adjust spin value
         self.ui.spinFirstPage.setValue(max(1, self.firstPageNum + (i - self.firstImage)))
         self.firstImage = i
@@ -209,10 +209,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tocPageNum = self.ui.scrollTOCPage.value() if checkbox.isChecked() else -1
         
     def tocPreviewChanged(self):
-            i = self.ui.scrollTOCPage.value()
+        i = self.ui.scrollTOCPage.value()
         image = self.book.get_page(i)
-            self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
-            self.ui.labelTOCPage.setText(str(i))
+        self.ui.imageTOCPage.setPixmap(QtGui.QPixmap(image))
+        self.ui.labelTOCPage.setText(str(i))
         self.tocPageNum = i
 
     def tocAddRow(self, index):
@@ -271,8 +271,6 @@ class MainWindow(QtWidgets.QMainWindow):
         path = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
         if len(path):
             work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
-            # Move output file from work folder for to save location.        
-        # Move output file from work folder for to save location.        
             # Move output file from work folder for to save location.        
             move(os.path.join(work_path, self.file), path[0])
             # Update save path
