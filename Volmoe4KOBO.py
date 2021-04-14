@@ -2,7 +2,7 @@ import io
 import os
 import sys
 
-from shutil import copyfile, move, rmtree
+from shutil import move, rmtree
 from tempfile import gettempdir
 
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -93,11 +93,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # Update settings
         load_path, self.file = os.path.split(path[0])
         if len(load_path):
-        settings.setValue("path/load", load_path)
+            settings.setValue("path/load", load_path)
 
-        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
-        self.book = eBook(path[0], work_path)
-        self.book.load(self.loadProgressChanged, self.loadCompleted)
+            work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+            self.book = eBook(path[0], work_path)
+            self.book.load(self.loadProgressChanged, self.loadCompleted)
 
             self.ui.buttonSelectFile.setHidden(True)
 
@@ -269,12 +269,15 @@ class MainWindow(QtWidgets.QMainWindow):
     def saveFileButtonClicked(self):        
         save_path = settings.value("path/save", os.path.expanduser("~/Documents"))
         path = QtWidgets.QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
-        work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+        if len(path):
+            work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
+            # Move output file from work folder for to save location.        
         # Move output file from work folder for to save location.        
-        move(os.path.join(work_path, self.file), path[0])
-        # Update save path
-        save_path, _ = os.path.split(path[0])
-        settings.setValue("path/save", save_path)
+            # Move output file from work folder for to save location.        
+            move(os.path.join(work_path, self.file), path[0])
+            # Update save path
+            save_path, _ = os.path.split(path[0])
+            settings.setValue("path/save", save_path)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])

@@ -412,11 +412,18 @@ TabButton:disabled {
            <number>0</number>
           </property>
           <widget class="QWidget" name="pageBegin">
-           <layout class="QVBoxLayout" name="verticalLayout_24" stretch="0,1">
+           <layout class="QVBoxLayout" name="verticalLayout_24" stretch="0,0,1">
             <item>
              <widget class="QLabel" name="label_2">
               <property name="text">
                <string>請選取ePub檔案或是含有漫畫圖檔的資料夾開始處理。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_3">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -436,7 +443,7 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageBookInfo">
-           <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,1,0">
+           <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0,1,0">
             <property name="spacing">
              <number>6</number>
             </property>
@@ -447,6 +454,13 @@ TabButton:disabled {
               </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -601,7 +615,7 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageFirstPage">
-           <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,1,0">
+           <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0,1,0">
             <item>
              <widget class="QLabel" name="label_5">
               <property name="sizePolicy">
@@ -612,6 +626,13 @@ TabButton:disabled {
               </property>
               <property name="text">
                <string>選取書本打開後的第一頁，一般而言是在左側。如果從缺，請選擇第一張頁面並設定其頁碼。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_4">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -760,7 +781,7 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageImageEnhance">
-           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0">
+           <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1,0">
             <item>
              <widget class="QLabel" name="label_4">
               <property name="sizePolicy">
@@ -771,6 +792,13 @@ TabButton:disabled {
               </property>
               <property name="text">
                <string>調整畫面對比度。你可以切換預覽圖片以檢視效果。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_5">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -951,7 +979,7 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageTOC">
-           <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,0">
+           <layout class="QVBoxLayout" name="verticalLayout_3" stretch="0,0,0,0">
             <item>
              <widget class="QLabel" name="label_1">
               <property name="sizePolicy">
@@ -962,6 +990,13 @@ TabButton:disabled {
               </property>
               <property name="text">
                <string>選取目錄所在頁面並編輯內容。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_6">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -1199,11 +1234,18 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageProcess">
-           <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,0,0,0">
+           <layout class="QVBoxLayout" name="verticalLayout_5" stretch="0,0,0,0,0">
             <item>
              <widget class="QLabel" name="label_3">
               <property name="text">
                <string>檔案優化處理中，請稍候。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_7">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>
@@ -1264,11 +1306,18 @@ TabButton:disabled {
            </layout>
           </widget>
           <widget class="QWidget" name="pageSave">
-           <layout class="QVBoxLayout" name="verticalLayout_14" stretch="0,0,0">
+           <layout class="QVBoxLayout" name="verticalLayout_14" stretch="0,0,0,0">
             <item>
              <widget class="QLabel" name="label_15">
               <property name="text">
                <string>請選擇儲存檔案的方式。</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="Line" name="line_8">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
               </property>
              </widget>
             </item>

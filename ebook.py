@@ -282,15 +282,15 @@ class eBook(object):
         range_portion = (range_max - range_min) / 6
 
         # Copy all other unchanged stuffs
-        copyfile("./Res/mimetype", os.path.join(self.output, "mimetype"))
+        copyfile(self.__bundle_path("Res/mimetype"), os.path.join(self.output, "mimetype"))
         if os.path.exists(os.path.join(self.output, "item", "style")):
             rmtree(os.path.join(self.output, "item", "style"))
-        copytree("./Res/style", os.path.join(self.output, "item", "style"))
+        copytree(self.__bundle_path("Res/style"), os.path.join(self.output, "item", "style"))
         if not os.path.exists(os.path.join(self.output, "item", "image")):
             os.makedirs(os.path.join(self.output, "item", "image"))
         os.makedirs(os.path.join(self.output, "item", "xhtml"), exist_ok=True)
         os.makedirs(os.path.join(self.output, "META-INF"), exist_ok=True)
-        copyfile("./Res/container.xml", os.path.join(self.output, "META-INF", "container.xml"))
+        copyfile(self.__bundle_path("Res/container.xml"), os.path.join(self.output, "META-INF", "container.xml"))
         signal.emit(range_min + range_portion)
 
         page_count = len([self.cover] + self.pages + [self.colophon])
@@ -309,7 +309,7 @@ class eBook(object):
             signal.emit(self.__get_progess_percentage(i, page_count, range_min + range_portion, range_min + range_portion*2))
             
         # opf
-        with open("./Res/standard.opf", 'r', encoding="utf-8") as opf_file:
+        with open(self.__bundle_path("Res/standard.opf"), 'r', encoding="utf-8") as opf_file:
             html = BeautifulSoup(opf_file, 'html.parser')
 
             html.find('dc:identifier').string = "urn:uuid:"+self.identifier
@@ -361,7 +361,7 @@ class eBook(object):
                 f.write(str(html))
 
         # ncx
-        with open("./Res/toc.ncx", 'r', encoding="utf-8") as ncx_file:
+        with open(self.__bundle_path("Res/toc.ncx"), 'r', encoding="utf-8") as ncx_file:
             html = BeautifulSoup(ncx_file, 'html.parser')
 
             html.ncx.head.find("meta", attrs={'name':'dtb:uid'})["content"] = self.identifier
@@ -412,7 +412,7 @@ class eBook(object):
         
         # html pages
         for i, page in enumerate([self.cover] + self.pages + [self.colophon]):
-            with open("./Res/page.xhtml", 'r', encoding="utf-8") as page_file:
+            with open(self.__bundle_path("Res/page.xhtml"), 'r', encoding="utf-8") as page_file:
                 html = BeautifulSoup(page_file, 'html.parser')
 
                 html.head.title.string = self.title
@@ -439,7 +439,7 @@ class eBook(object):
                     f.write(str(html))            
 
         # navigation-documents
-        with open("./Res/navigation-documents.html", 'r', encoding="utf-8") as nd_file:
+        with open(self.__bundle_path("Res/navigation-documents.html"), 'r', encoding="utf-8") as nd_file:
             html = BeautifulSoup(nd_file, 'html.parser')
 
             nav_toc = html.find("nav", id="toc")
@@ -542,6 +542,13 @@ class eBook(object):
         image = self.__contrast_image(image, contrast)
         image = self.__deskew_image(image)
         return self.__sharpen_image(image, 1 if contrast == 32 else 2)
+
+    def __bundle_path(self, path):
+        if getattr( sys, 'frozen', False ):
+            # running in a bundle
+            return os.path.join(sys._MEIPASS, path)
+        else:
+            return path
 
     def __find_files(self, path, ext) -> []:
         """ Find all files in given path with extension """
