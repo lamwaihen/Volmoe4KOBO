@@ -7,7 +7,7 @@ from tempfile import gettempdir
 
 from PyQt5.QtWidgets import QApplication, QFileDialog, QLineEdit, QMainWindow, QPushButton, QSizePolicy
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QSettings, QSize
+from PyQt5.QtCore import QSettings, QSize, Qt
 from UI.Main import Ui_MainWindow
 
 from ebook import eBook
@@ -253,12 +253,21 @@ class MainWindow(QMainWindow):
     def saveFileButtonClicked(self):        
         save_path = settings.value("path/save", os.path.expanduser("~/Documents"))
         path = QFileDialog.getSaveFileName(self, "Save file", os.path.join(save_path, self.file), "KOBO ePub (*.kepub.epub)")
-        if len(path):
+        file = path[0]
+        if len(file):
+            # Must use extension *.kepub.epub
+            if ".kepub.epub" not in file:
+                # Make sure its not using *.epub
+                file = file.replace(".epub", "")
+                # Append correct extension.
+                file = file + ".kepub.epub"
             work_path = settings.value("path/work", os.path.join(gettempdir(), "ebook"))
-            # Move output file from work folder for to save location.        
-            move(os.path.join(work_path, self.file), path[0])
+            # Move output file from work folder for to save location.
+            QApplication.setOverrideCursor(Qt.WaitCursor)
+            move(os.path.join(work_path, self.file), file)
+            QApplication.restoreOverrideCursor()
             # Update save path
-            save_path, _ = os.path.split(path[0])
+            save_path, _ = os.path.split(file)
             settings.setValue("path/save", save_path)
 
 if __name__ == '__main__':
