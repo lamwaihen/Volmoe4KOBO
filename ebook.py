@@ -109,18 +109,17 @@ class eBook(object):
                 "width": width,
                 "height": height
             }
-            self.book_width = width
-            self.book_height = height
-            logging.info("cover: " + str(self.cover))
+            logging.debug("cover: aspect {:.3f} {}".format(float(self.cover["width"]) / self.cover["height"], self.cover))
+
 
             width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="img_createby").get("href")))
             self.colophon = {
                 "i-id": "img_createby", 
-                "i-path": opf.find("item", id="img_createby").get("href"), 
+                "i-path": opf.find("item", id="img_createby").get("href"),
                 "width": width,
                 "height": height
             }
-            logging.info("colophon: " + str(self.colophon))
+            logging.debug("colophon: " + str(self.colophon))
 
             self.pages = []
             htmls = opf.find_all('item', id=re.compile("^Page_\\d"), attrs={"media-type": "application/xhtml+xml"})
@@ -137,9 +136,12 @@ class eBook(object):
                         "width": width,
                         "height": height
                         }
-                    logging.debug("Page{}: {}".format(i, page))
+                    logging.debug("Page{}: aspect {:.3f} {}".format(i, float(page["width"]) / page["height"], page))
                     self.pages.append(page)
-                    signal.emit(self.__get_progess_percentage(i, len(htmls), 50, 90))
+                    signal.emit(self.__get_progess_percentage(i, len(htmls), 50, 70))
+
+        # Layout fix
+        self.layout_fix(signal, 70, 90)
 
         # Load ncx
         ncxs_found = dict((file, os.path.getsize(file)) for file in self.__find_files(self.input, ".ncx"))
@@ -209,17 +211,6 @@ class eBook(object):
         for i, page in enumerate(self.pages):
             image = Image.open(os.path.join(self.input, page["i-path"]))
 
-            # Convert png to jpg
-            if not image.mode == "RGB":
-                logging.debug("Convert {} to jpg.".format(page["i-path"]))
-                # update name
-                y = page["i-path"].rfind(".")
-                name = page["i-path"][:y]+".jpg"
-                image.convert('RGB').save(os.path.join(self.input, name),"JPEG")
-                page["i-path"] = name
-                # open the new jpg
-                image = Image.open(os.path.join(self.input, page["i-path"]))
-
             # Contrast
             new_image = self.__contrast_image(image, contrast)
 
@@ -239,17 +230,29 @@ class eBook(object):
 
         signal.emit(range_max)
     
-    def layout_fix(self, firstImage=3):
+    def layout_fix(self, signal: pyqtSignal, range_min, range_max):
         """ Split, rotate and even straighten images, this may alter the page order of the book. """
         new_pages = self.pages.copy()
-        for i, page in enumerate(self.pages[firstImage-1:]):
+        for i, page in enumerate(self.pages):
             # Get actual index from the list we are going to modify
             img = Image.open(os.path.join(self.input, page["i-path"]))
 
+            # Convert png to jpg
+            _, file_extension = os.path.splitext(page["i-path"])
+            if file_extension.lower() == ".png":
+                logging.debug("Convert {} to jpg.".format(page["i-path"]))
+                # update name
+                y = page["i-path"].rfind(".")
+                name = page["i-path"][:y]+".jpg"
+                img.convert('RGB').save(os.path.join(self.input, name),"JPEG")
+                page["i-path"] = name
+                # open the new jpg
+                img = Image.open(os.path.join(self.input, page["i-path"]))
+
             width = page["width"]
             height = page["height"]
-            # Found page that needs rotate
-            if self.book_width * 2.1 >= height >= self.book_width * 1.9 and self.book_height * 1.1 >= width >= self.book_height * 0.9:
+            # Found page that needs rotate if aspect ratio is larger than 0.74 (normally it should be 0.66)
+            if float(width) / height >= 0.74:
                 logging.info("Rotate and split {} {}".format(page["i-id"], page["i-path"]))
                 # Rotate
                 img = img.rotate(270, expand=True)
@@ -271,10 +274,12 @@ class eBook(object):
                 new_page = {"i-path": page["i-path"][:y]+"r"+page["i-path"][y:], "i-id": page["i-id"]+"r", "width": int(height/2), "height": width}
                 new_pages.insert(index, new_page)
                 imgr.save(os.path.join(self.input, new_page["i-path"]))
+            
+            signal.emit(self.__get_progess_percentage(i, len(self.pages), range_min, range_max))
 
-        logging.debug("New pages: {}".format(new_pages))
+        #logging.debug("New pages: {}".format(new_pages))
         self.pages = new_pages.copy()
-        return
+        signal.emit(range_max)
 
     def generate_new_structure(self, signal: pyqtSignal, firstImage, firstPageNum, tocPageNum, toc, range_min, range_max):
         """ Copy unchanged stuffs to output folder and modify necessary files. """
@@ -354,7 +359,7 @@ class eBook(object):
                 _spine.insert_after(new_spine)
                 _spine = new_spine
                 signal.emit(self.__get_progess_percentage(i, page_count-1, range_min + range_portion*2, range_min + range_portion*3))
-      
+
             with open(os.path.join(self.output, "item", "standard.opf"), 'w', encoding="utf-8") as f:
                 # opf can't use prettify() or rotation won't work on KOBO.
                 f.write(str(html))
@@ -382,7 +387,7 @@ class eBook(object):
                             logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
                             title = chapter
                         elif i == firstImage:
-                            title = "頁首"
+                            title = "卷首"
                         else:
                             continue
                     else:
@@ -458,7 +463,7 @@ class eBook(object):
                             logging.debug("TOC {} at page {}".format(chapter, i-firstImage+firstPageNum))
                             title = chapter
                         elif i == firstImage:
-                            title = "頁首"                            
+                            title = "卷首"
                         else:
                             continue
                     else:

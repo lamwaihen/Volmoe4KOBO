@@ -23,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self.ui.buttonSelectFile.clicked.connect(self.openFileDialog)
         self.ui.progressBarLoad.setHidden(True)
+        self.ui.buttonReset.setHidden(True)
         self.ui.labelBookName.setHidden(True)
 
         self.ui.statusbar.setHidden(True)
@@ -31,15 +32,18 @@ class MainWindow(QMainWindow):
 
         # pageBookInfo
         self.ui.buttonBeginNext.clicked.connect(self.nextButtonClicked)
+        self.ui.buttonReset.clicked.connect(self.resetButtonClicked)
 
         # pageFirstPage
         self.ui.scrollFirstPage.valueChanged.connect(self.firstPagePreviewChanged)
+        self.ui.scrollFirstPage.rangeChanged.connect(self.firstPagePreviewChanged)
         self.ui.spinFirstPage.valueChanged.connect(self.firstPageSpinChanged)
         self.ui.buttonFirstPagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonFirstPageNext.clicked.connect(self.nextButtonClicked)
 
         # pageImageEnhance
         self.ui.scrollEnhancePage.valueChanged.connect(self.imageEnhancePreviewChanged)
+        self.ui.scrollEnhancePage.rangeChanged.connect(self.imageEnhancePreviewChanged)
         self.ui.sliderContrast.valueChanged.connect(self.imageEnhancePreviewChanged)
         self.ui.buttonEnhancePagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonEnhancePageNext.clicked.connect(self.nextButtonClicked)
@@ -47,6 +51,7 @@ class MainWindow(QMainWindow):
         # pageTOC
         self.ui.checkBoxHasTOC.stateChanged.connect(lambda:self.hasTOCChanged(self.ui.checkBoxHasTOC))
         self.ui.scrollTOCPage.valueChanged.connect(self.tocPreviewChanged)
+        self.ui.scrollTOCPage.rangeChanged.connect(self.tocPreviewChanged)
         self.ui.tocAddButton.clicked.connect(self.tocAddRowClicked)
         self.ui.buttonTOCPagePrev.clicked.connect(self.prevButtonClicked)
         self.ui.buttonTOCPageNext.clicked.connect(self.nextButtonClicked)
@@ -100,11 +105,15 @@ class MainWindow(QMainWindow):
     def showCurrentPage(self):
         currentPage = self.ui.stackedWidget.currentWidget().objectName()
         if currentPage == 'pageBegin':
-            print("hello")
+            self.ui.buttonSelectFile.setHidden(False)
+            self.ui.progressBarLoad.setHidden(True)
+            self.ui.buttonReset.setHidden(True)
+            self.ui.labelBookName.setHidden(True)
         elif currentPage == 'pageBookInfo':
             # update UI
             self.ui.tabButtonInfo.setEnabled(True)        
             self.ui.progressBarLoad.setHidden(True)
+            self.ui.buttonReset.setHidden(False)
             self.ui.labelBookName.setHidden(False)            
             self.ui.labelBookName.setText(self.book.get_info("Title"))
             self.ui.labelPath.setText(os.path.join(settings.value("path/load"), self.file))
@@ -117,19 +126,18 @@ class MainWindow(QMainWindow):
         elif currentPage == 'pageFirstPage':
             self.ui.tabButtonFirstPage.setEnabled(True)
             size = int(self.book.get_info("PageCount"))
-            self.ui.scrollFirstPage.setMaximum(size)
             self.ui.scrollFirstPage.setValue(self.firstImage)
+            self.ui.scrollFirstPage.setMaximum(size)            
         elif currentPage == 'pageImageEnhance':
             self.ui.tabButtonImageEnhance.setEnabled(True)
-            self.book.layout_fix(self.ui.scrollFirstPage.value())
             size = int(self.book.get_info("PageCount"))
-            self.ui.scrollEnhancePage.setRange(1, size)
             self.ui.scrollEnhancePage.setValue(5)
+            self.ui.scrollEnhancePage.setMaximum(size)
         elif currentPage == 'pageTOC':
             self.ui.tabButtonTOC.setEnabled(True)
             size = int(self.book.get_info("PageCount"))
-            self.ui.scrollTOCPage.setMaximum(size)
             self.ui.scrollTOCPage.setValue(self.tocPageNum)
+            self.ui.scrollTOCPage.setMaximum(size)
             self.ui.checkBoxHasTOC.setChecked(True if self.tocPageNum > 0 else False)
         elif currentPage == 'pageProcess':
             self.ui.tabButtonProcess.setEnabled(True)
@@ -163,6 +171,10 @@ class MainWindow(QMainWindow):
 
     def saveCompleted(self):
         self.ui.buttonProcessNext.setEnabled(True)
+
+    def resetButtonClicked(self):
+        self.resetData()
+        self.ui.stackedWidget.setCurrentIndex(0)
 
     def firstPagePreviewChanged(self):
         i = self.ui.scrollFirstPage.value()

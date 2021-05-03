@@ -36,7 +36,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>../Res/icon-256.png</normaloff>../Res/icon-256.png</iconset>
+    <normaloff>C:/Users/lamwa/.designer/Res/icon-256.png</normaloff>C:/Users/lamwa/.designer/Res/icon-256.png</iconset>
   </property>
   <property name="styleSheet">
    <string notr="true">QLabel {	color: rgb(52, 124, 124);	}
@@ -216,6 +216,13 @@ TabButton:disabled {
            </property>
            <property name="text">
             <string>TextLabel</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="buttonReset">
+           <property name="text">
+            <string>X</string>
            </property>
           </widget>
          </item>
@@ -549,7 +556,7 @@ TabButton:disabled {
                  </size>
                 </property>
                 <property name="text">
-                 <string> </string>
+                 <string/>
                 </property>
                </widget>
               </item>
@@ -1034,7 +1041,7 @@ TabButton:disabled {
                     <item>
                      <widget class="QLabel" name="label_16">
                       <property name="text">
-                       <string> </string>
+                       <string/>
                       </property>
                      </widget>
                     </item>
