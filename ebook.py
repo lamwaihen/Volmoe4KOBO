@@ -105,7 +105,7 @@ class eBook(object):
             width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="cover_img").get("href")))
             self.cover = {
                 "i-id": "cover_img", 
-                "i-path": opf.find("item", id="cover_img").get("href"), 
+                "i-path": self.__convert_png_to_jpg(opf.find("item", id="cover_img").get("href")),
                 "width": width,
                 "height": height
             }
@@ -115,7 +115,7 @@ class eBook(object):
             width, height = image_helper.getImageSize(os.path.join(self.input, opf.find("item", id="img_createby").get("href")))
             self.colophon = {
                 "i-id": "img_createby", 
-                "i-path": opf.find("item", id="img_createby").get("href"),
+                "i-path": self.__convert_png_to_jpg(opf.find("item", id="img_createby").get("href")),
                 "width": width,
                 "height": height
             }
@@ -131,7 +131,7 @@ class eBook(object):
                     width, height = image_helper.getImageSize(os.path.join(self.input, img.get("src").replace("../", "")))
                     page_num = len(self.pages)+1
                     page = {
-                        "i-path": img.get("src").replace("../", ""), 
+                        "i-path": self.__convert_png_to_jpg(img.get("src").replace("../", "")),
                         "i-id": "img_{}".format(page_num),
                         "width": width,
                         "height": height
@@ -237,22 +237,10 @@ class eBook(object):
             # Get actual index from the list we are going to modify
             img = Image.open(os.path.join(self.input, page["i-path"]))
 
-            # Convert png to jpg
-            _, file_extension = os.path.splitext(page["i-path"])
-            if file_extension.lower() == ".png":
-                logging.debug("Convert {} to jpg.".format(page["i-path"]))
-                # update name
-                y = page["i-path"].rfind(".")
-                name = page["i-path"][:y]+".jpg"
-                img.convert('RGB').save(os.path.join(self.input, name),"JPEG")
-                page["i-path"] = name
-                # open the new jpg
-                img = Image.open(os.path.join(self.input, page["i-path"]))
-
             width = page["width"]
             height = page["height"]
-            # Found page that needs rotate if aspect ratio is larger than 0.74 (normally it should be 0.66)
-            if float(width) / height >= 0.74:
+            # Found page that needs rotate if aspect ratio is larger than 0.70 (normally it should be 0.66) but smaller than 1
+            if  0.70 < float(width) / height < 1.0:
                 logging.info("Rotate and split {} {}".format(page["i-id"], page["i-path"]))
                 # Rotate
                 img = img.rotate(270, expand=True)
@@ -595,3 +583,19 @@ class eBook(object):
         
         angle = image_helper.getSkewAngle(image)
         return image_helper.rotateImage(image, angle)
+
+    def __convert_png_to_jpg(self, href: str) -> str:
+        """ Convert png to jpg, and return new i-path. """
+        _, file_extension = os.path.splitext(href)
+        if file_extension.lower() == ".png":
+            logging.debug("Convert {} to jpg.".format(href))
+            # update name
+            y = href.rfind(".")
+            name = href[:y]+".jpg"
+            # open the old png
+            img = Image.open(os.path.join(self.input, href))
+            # save as jpg
+            img.convert('RGB').save(os.path.join(self.input, name),"JPEG")
+            return name
+        else:
+            return href
