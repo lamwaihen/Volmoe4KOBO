@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import re
 import itertools
 
+import numpy as np
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 import image_helper
 
@@ -229,18 +230,30 @@ class eBook(object):
             signal.emit(self.__get_progess_percentage(i, len(self.pages), range_min, range_max))
 
         signal.emit(range_max)
-    
+
     def layout_fix(self, signal: pyqtSignal, range_min, range_max):
         """ Split, rotate and even straighten images, this may alter the page order of the book. """
         new_pages = self.pages.copy()
+
+        # Get the mean aspect ratio from all pages.
+        ar1 = np.mean(self.__reject_outliers(np.array([float(page["width"]) / page["height"] for page in self.pages])))
+        logging.info("mean aspect raatio: {}".format(ar1))
+
+        # ar1 is regular single page (w/h), and ar2 is double spread page (h/2w)
+        ar = [ar1, 1. / (ar1 * 2)]
+
         for i, page in enumerate(self.pages):
             # Get actual index from the list we are going to modify
             img = Image.open(os.path.join(self.input, page["i-path"]))
 
             width = page["width"]
             height = page["height"]
-            # Found page that needs rotate if aspect ratio is larger than 0.70 (normally it should be 0.66) but smaller than 1
-            if  0.70 < float(width) / height < 1.0:
+            aspect_ratio = float(width) / height
+
+            # Found page that needs rotate if aspect ratio is near double spread page
+            near = min(ar, key=lambda x:abs(x-(aspect_ratio)))
+            logging.info("Near: {} {:.3f} {:.3f}".format(page["i-path"], aspect_ratio, near))
+            if  near == ar[1]:
                 logging.info("Rotate and split {} {}".format(page["i-id"], page["i-path"]))
                 # Rotate
                 img = img.rotate(270, expand=True)
@@ -535,6 +548,12 @@ class eBook(object):
         image = self.__deskew_image(image)
         return self.__sharpen_image(image, 1 if contrast == 32 else 2)
 
+    def __reject_outliers(self, data: np.float32, m = 2.) -> float:
+        d = np.abs(data - np.median(data))
+        mdev = np.median(d)
+        s = d/mdev if mdev else 0.
+        return data[s<m]
+
     def __bundle_path(self, path):
         if getattr( sys, 'frozen', False ):
             # running in a bundle
@@ -596,6 +615,8 @@ class eBook(object):
             img = Image.open(os.path.join(self.input, href))
             # save as jpg
             img.convert('RGB').save(os.path.join(self.input, name),"JPEG")
+            # remove png
+            os.remove(os.path.join(self.input, href))
             return name
         else:
             return href
